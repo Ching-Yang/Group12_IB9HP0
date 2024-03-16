@@ -193,11 +193,11 @@ pie_chart_payment <- plot_ly(
 
 this_filename_date <- as.character(Sys.Date())
 this_filename_time <- as.character(format(Sys.time(), format = "%H_%M"))
-file_name_html <- paste0("figures/pie_chart_payment_", this_filename_date, "_", this_filename_time, ".html")
+file_name_html1 <- paste0("figures/pie_chart_payment_", this_filename_date, "_", this_filename_time, ".html")
 file_name_png <- paste0("figures/pie_chart_payment_", this_filename_date, "_", this_filename_time, ".png")
 
-saveWidget(pie_chart_payment, file = file_name_html, selfcontained = TRUE)
-webshot(file_name_html, file = file_name_png)
+saveWidget(pie_chart_payment, file = file_name_html1, selfcontained = TRUE)
+webshot(file_name_html1, file = file_name_png)
 
 
 
@@ -223,11 +223,11 @@ map <- leaflet(locations) %>%
  )
 this_filename_date <- as.character(Sys.Date())
 this_filename_time <- as.character(format(Sys.time(), format = "%H_%M"))
-file_name_html <- paste0("figures/map_", this_filename_date, "_", this_filename_time, ".html")
+file_name_html2 <- paste0("figures/map_", this_filename_date, "_", this_filename_time, ".html")
 file_name_png <- paste0("figures/map_", this_filename_date, "_", this_filename_time, ".png")
 
-saveWidget(map, file = file_name_html, selfcontained = TRUE)
-webshot(file_name_html, file = file_name_png)
+saveWidget(map, file = file_name_html2, selfcontained = TRUE)
+webshot(file_name_html2, file = file_name_png)
 
 
 
@@ -284,11 +284,11 @@ fig <- ggplot(order_items_df, aes(x = Ads_Present, fill = Ads_Present)) +
 fig <- ggplotly(fig)
 this_filename_date <- as.character(Sys.Date())
 this_filename_time <- as.character(format(Sys.time(), format = "%H_%M"))
-file_name_html <- paste0("figures/Ads_", this_filename_date, "_", this_filename_time, ".html")
+file_name_html3 <- paste0("figures/Ads_", this_filename_date, "_", this_filename_time, ".html")
 file_name_png <- paste0("figures/Ads_", this_filename_date, "_", this_filename_time, ".png")
 
-saveWidget(fig, file = file_name_html, selfcontained = TRUE)
-webshot(file_name_html, file = file_name_png)
+saveWidget(fig, file = file_name_html3, selfcontained = TRUE)
+webshot(file_name_html3, file = file_name_png)
 
 
 
@@ -315,11 +315,11 @@ fig <- ggplotly(fig)
 
 this_filename_date <- as.character(Sys.Date())
 this_filename_time <- as.character(format(Sys.time(), format = "%H_%M"))
-file_name_html <- paste0("figures/categories_", this_filename_date, "_", this_filename_time, ".html")
+file_name_html4 <- paste0("figures/categories_", this_filename_date, "_", this_filename_time, ".html")
 file_name_png <- paste0("figures/categories_", this_filename_date, "_", this_filename_time, ".png")
 
-saveWidget(fig, file = file_name_html, selfcontained = TRUE)
-webshot(file_name_html, file = file_name_png)
+saveWidget(fig, file = file_name_html4, selfcontained = TRUE)
+webshot(file_name_html4, file = file_name_png)
 
 
 
