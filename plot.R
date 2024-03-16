@@ -135,7 +135,7 @@ saveWidget(map, file = file_name_html, selfcontained = TRUE)
 webshot(file_name_html, file = file_name_png)
 
 # Selecting all orders placed
-query <- "SELECT order_id AS Orders, advertisement_id AS Ads_ID, order_item_quantity AS Quantity_Ordered
+query <- "SELECT order_id AS Orders, ads_id AS Ads_ID, order_item_quantity AS Quantity_Ordered
 FROM order_items;"
 
 order_items_df <- dbGetQuery(connection, query)
