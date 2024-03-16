@@ -38,6 +38,15 @@ new_Products <- anti_join(Products, old_Products, by = "product_id")
 new_Shipments <- anti_join(Shipments, old_Shipments, by = "shipment_id")
 new_Suppliers <- anti_join(Suppliers, old_Suppliers, by = "supplier_id")
 
+new_Advertisements$ads_id <- as.integer(new_Advertisements$ads_id)
+new_Customers$cust_id <- as.integer(new_Customers$cust_id)
+new_Order_items$order_item_id <- as.integer(new_Order_items$order_item_id)
+new_Orders$order_id <- as.integer(new_Orders$order_id)
+new_Payments$payment_id <- as.integer(new_Payments$payment_id)
+new_Products$product_id <- as.integer(new_Products$product_id)
+new_Shipments$shipment_id <- as.integer(new_Shipments$shipment_id)
+new_Suppliers$supplier_id <- as.integer(new_Suppliers$supplier_id)
+
 this_filename_date <- as.character(Sys.Date())
 this_filename_time <- as.character(format(Sys.time(), format = "%H_%M"))
 
