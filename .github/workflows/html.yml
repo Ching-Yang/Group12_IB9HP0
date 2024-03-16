@@ -16,8 +16,7 @@ jobs:
           find . -name '*.html' -not -path './.github/*' -not -path './node_modules/*' | while read line; do
             filename=$(basename "$line")
             path=${line#./}
-            url="https://Ching-Yang.github.io/Group12_IB9HP0
-/${path}"
+            url="https://Ching-Yang.github.io/Group12_IB9HP0/${path}"
             echo "- [$filename]($url)" >> README.md
           done
       - name: Commit and push if changed
