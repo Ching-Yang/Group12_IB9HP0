@@ -1,0 +1,1687 @@
+---
+title: "Report_G12"
+format: pdf
+editor: visual
+---
+
+\*--Coverpage----------------------------------\*\*
+
+\newpage
+
+## Introduction
+
+This report simulate a real-world e-commerce data environment where engaging end-to-end data management. The report is composed of 4 major tasks from database design to data analysis.
+
+```{r}
+#| echo: false
+knitr::opts_chunk$set(eva1 = FALSE)
+#Package to run SQL and R
+library(RSQLite)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(readr)
+library(DBI)
+library(ggmap)
+library(leaflet)
+library(leaflet.extras)
+library(plotly)
+
+```
+
+## Part 1: Database Design and Implementation
+
+### 1.1 E-R Diagram Design
+
+*\[Attach image \]*
+
+Our E-R Diagram that explains the e-commerce platform is composed of 7 entities which could be explained relationship as churns below:
+
+1.  **Customers:** The diagram begins with the Customer entity with a unique customer ID as its primary key. The information stored as attributes in this entity would relate to the customer's personal details, address, and account information (e.g gender, postcode, account type). Remark \*\* referral\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+2.  **Orders:** The Customer entity shares a many to many (M:N) relationship with Products entity through the relationship Orders. As such, Orders contains the primary key "order_id" with the attributes order status and order date.
+
+3.  **Products:** The M:N relationship between customers and products is assumed as many customers can order one product and vice versa. The product entity contains attributes that describe the product (dimensions, description etc.) as well as categories.
+
+\[Relationship sets\]
+
+1.  **Suppliers:** Supplier sells Products on the ecommerce platform with a one to many (1:N) relationship as it is assumed that each supplier may sells multiple different products but the products are unique across suppliers. Attributes recorded pertain to the account information, contact, and name of the supplier.
+
+2.  **Order items:** After a customer places an order, the product information is contained in Order Items entity. The Order Items and Product entities share a one to many (1:N) relationship as it is assumed that one Order Item with a unique order item ID (primary key), contains all the products a customer wishes to buy. The entity takes note of the number of products in it and the total price.
+
+3.  **Payments:** An (N:1) relationship is created between Order Items and Payments. This suggests that many order Items can be paid in one payment. The primary key for Payment is the Payment_ID, followed by the attributes of Payment_method and Payment_status.
+
+4.  **Shipments:** Another (N:1) relationship is witnessed in Order_items and Shipment. The relationship implies that many order items can be shipped in one shipment. This entity consists of various attributes such as shipment_date, shipment_status, shipment_company, shipment_zipcode, shipment_address, shipment_city and its primary key as the shipment_ID.
+
+5.  **Advertisements:** Suppliers are able to generate multiple advertisements for their products through the e-commerce platform, hence a one to many (1:N) relationship is shared between them. Ads_id has been assigned as the primary key with attributes ads_name, ads_details, product_discount and discount_price.
+
+### 1.2 SQL Database Schema Creation
+
+To translate the E-R Diagram into functional SQL database schema, we listed out logical design as follows.
+
+1.  Customers ([cust_id]{.underline}, cust_contact, cust_email, cust_dob, cust_gender, cust_fname, cust_lname, cust_city, cust_postcode, cust_address, cust_active, cust_referral_id, cust_type, cust_date_created)
+
+2.  Advertisement ([ads_id]{.underline}, product_id, supplier_id, ads_details, ads_name, product_discount, discount_price)
+
+3.  Orders (order_id, [*cust_id*]{.underline}, order_status, order_date)
+
+4.  Suppliers ([supplier_id]{.underline}, supplier_name, supplier_city, supplier_address, supplier_postcode, supplier_email, supplier_contact)
+
+5.  Products ([product_id]{.underline}, supplier_id, product_category, product_name, product_description, product_price, product_length, product_height, product_width, product_weight)
+
+6.  Order Items ([order_item_id,]{.underline} order_id, product_id, ads_id, order_item_quantity, order_item_unit_price)
+
+7.  Shipment ([shipment_id]{.underline}, order_id, cust_id, shipment_date, shipment_company, shipment_address, shipment_postcode, , shipment_city, shipment_status)
+
+8.  Payment ([payment_id]{.underline}, cust_id, order_item_id, payment_status, payment_method)
+
+After that, we have created 8 tables that consist of attributes and their data types in below sections.
+
+```{r defineconnection}
+#Define connection to connect R with the database using package RSQLite. We defined our e-commerce database as "ecomm.db"
+connection <- RSQLite::dbConnect(RSQLite::SQLite(),"ecomm.db")
+```
+
+After that, we define create tables for each entity and relationship in below sections:
+
+1.  Customers
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Customers
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Customers (
+    cust_id INT PRIMARY KEY,
+    cust_contact VARCHAR(11) NOT NULL CHECK (cust_contact NOT LIKE '%[^0-9]%'),
+    cust_email VARCHAR(100) NOT NULL UNIQUE,
+    cust_dob DATE CHECK (cust_dob <= CURRENT_DATE),
+    cust_gender CHAR(1) CHECK (cust_gender IN ('M', 'F', 'O')),
+    cust_fname VARCHAR(100) NOT NULL,
+    cust_lname VARCHAR(100),
+    cust_city VARCHAR(100) NOT NULL,
+    cust_postcode VARCHAR(100) NOT NULL,
+    cust_address VARCHAR(100) NOT NULL,
+    cust_active BOOLEAN NOT NULL,
+    cust_referral_id INT,
+    cust_type VARCHAR(100) NOT NULL,
+    cust_date_created DATE CHECK (cust_date_created <= CURRENT_DATE)
+);
+```
+
+2.  Orders (Relationship)
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Orders
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Orders (
+  order_id INT PRIMARY KEY,
+  cust_id INT NOT NULL,
+  order_status VARCHAR (50) NOT NULL CHECK (order_status IN ('Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled')),
+  order_date DATE,
+  FOREIGN KEY('cust_id')
+    REFERENCES Customers('cust_id')
+  );
+```
+
+3.  Suppliers
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Suppliers
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Suppliers (
+  supplier_id INT PRIMARY KEY,
+  supplier_name VARCHAR(100) NOT NULL,
+  supplier_city VARCHAR(100) NOT NULL,
+  supplier_address VARCHAR(100) NOT NULL,
+  supplier_postcode VARCHAR(10) NOT NULL,
+  supplier_email VARCHAR(100) NOT NULL UNIQUE CHECK (supplier_email LIKE '%@%.%'),
+  supplier_contact VARCHAR(11) NOT NULL CHECK (supplier_contact NOT LIKE '%[^0-9]%')
+);
+
+```
+
+4.  Products
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Products
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Products (
+  product_id INT PRIMARY KEY,
+  supplier_id INT NOT NULL,
+  products_category VARCHAR(100) NOT NULL,
+  product_name VARCHAR(100) NOT NULL,
+  product_description TEXT,
+  product_price DECIMAL (10,2) NOT NULL,
+  product_length DECIMAL (10,2) NOT NULL,
+  product_height DECIMAL (10,2) NOT NULL,
+  product_width DECIMAL (10,2) NOT NULL,
+  product_weight DECIMAL (10,2) NOT NULL,
+  FOREIGN KEY('supplier_id')
+    REFERENCES Suppliers('supplier_id')
+  );
+```
+
+5.  Advertisements
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Advertisements
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Advertisements (
+  ads_id INT PRIMARY KEY,
+  product_id INT NOT NULL,
+  supplier_id INT NOT NULL,
+  ads_details TEXT,
+  ads_name VARCHAR (255) NOT NULL,
+  product_discount DECIMAL(3,2) CHECK (product_discount >= 0 AND product_discount <= 100),
+  discount_price DECIMAL (10,2) NOT NULL,
+  FOREIGN KEY('product_id')
+    REFERENCES Products('product_id'),
+  FOREIGN KEY('supplier_id')
+    REFERENCES Suppliers('supplier_id')
+    
+  );
+```
+
+6.Payments
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Payments
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Payments (
+  payment_id INT PRIMARY KEY,
+  cust_id INT NOT NULL,
+  order_item_id INT NOT NULL,
+  payment_status VARCHAR(50) NOT NULL CHECK (payment_status IN ('Pending', 'Processing', 'Completed', 'Failed', 'Cancelled', 'Refund Completed', 'Refund Processing', 'Refund Failed')),
+  payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('Credit Card', 'Debit Card', 'PayPal', 'Bank Transfer')),
+  FOREIGN KEY('cust_id')
+    REFERENCES Customers('cust_id'),
+  FOREIGN KEY('order_item_id')
+    REFERENCES Order_items('order_item_id')
+  );
+```
+
+7.  Order items
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Order_items
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Order_items (
+  order_item_id INT PRIMARY KEY,
+  order_id INT NOT NULL,
+  product_id INT,
+  ads_id INT,
+  order_item_quantity INT NOT NULL,
+  order_item_unit_price DECIMAL (10,2) NOT NULL,
+  FOREIGN KEY('order_id')
+    REFERENCES Orders('order_id'),
+  FOREIGN KEY('product_id')
+    REFERENCES Products('product_id'),
+  FOREIGN KEY('ads_id')
+    REFERENCES Advertisements('ads_id')
+    
+  );
+```
+
+8.  Shipments
+
+```{sql connection=connection}
+DROP TABLE IF EXISTS Shipments
+```
+
+```{sql connection=connection}
+CREATE TABLE IF NOT EXISTS Shipments (
+  shipment_id INT PRIMARY KEY,
+  order_id INT NOT NULL,
+  cust_id INT NOT NULL,
+  shipment_date DATE,
+  shipment_company VARCHAR(100) NOT NULL,
+  shipment_postcode VARCHAR(100) NOT NULL,
+  shipment_city VARCHAR(100) NOT NULL,
+  shipment_address VARCHAR(100) NOT NULL,
+  shipment_status VARCHAR (20) CHECK (shipment_status IN ('Pending', 'In Transit', 'Delivered', 'Cancelled')),
+  FOREIGN KEY('order_id')
+    REFERENCES Orders('order_id'),
+  FOREIGN KEY('cust_id')
+    REFERENCES Customers('cust_id')
+  );
+```
+
+## Part 2: Data Generation and Management
+
+### 2.1 Synthetic Data Generation
+
+To generate our e-commerce data, we have incorporated Python to create 8 files for each table. (See Appendix)
+
+There are 2 main packages that we utilised in Python, "Faker" to generate realistic names and addresses for individuals in a dataset, and then used "NumPy" to generate random numerical data such as income levels or ages to accompany this demographic information. This combination allows us to create diverse synthetic datasets for testing algorithms, building models, or simulating scenarios without relying on real-world data.
+
+To ensure that there are relationships among our entities and to be able to join the table for the future uses, we sequenced the order of creating each table and inserted foreign keys for each table as well. For example, in the product table, we set records (num_records = 80) then generated supplier IDs for the products by randomly selecting from supplier IDs in the Suppliers dataframe (supplier_ids_from_Suppliers = np.random.choice(Suppliers\['supplier_id'\], num_records, replace=True))
+
+Another important assumption for our group is that, we set the e-commerce to be UK based, which means customer and suppliers are all located in the UK. Hence, the phone number and postcode logic are inffered to the UK information where the phone number has 11 digits and starts with 07x. For the postcode, we retracted the information from a service provider specialising in postcode-related called 'IdealPostcodes' (ideal-postcodes.co.uk. (2023). UK Postcode Format. \[online\] Available at: https://ideal-postcodes.co.uk/guides/uk-postcode-format \[Accessed 16 March 2024\]). and doogal.co.uk. (2022). Postcode Districts. \[online\] Available at: https://www.doogal.co.uk/PostcodeDistricts#google_vignette \[Accessed 16 March 2024\].
+
+![](Report_images/postcode.jpeg)
+
+Based on the figure above, we gathered data from 2 websites, the sector section was where doogal.co.uk provided real information of the UK region, and IdealPostcodes randomly generated the unit part which are street and building with the population information. Notably, the population information is the data from the year 2011.
+
+To reflect the real data, we also incorporated weight to the attributes including Customer age, Product price and Order item quantity in normal distribution, postcode (weighted by population) and payment method (higher weights for Credit Cards and Debit Cards)
+
+Lastly, we have also applied the logic for all status attributes including Order status, Payment status, Shipment status to reflect the real data. For instance, if the order status shows any status apart from 'Pending', the shipment status will appear to be 'Processing', 'Shipped' and 'Delivered'. This is to ensure that the status will not conflict to each other such as order status 'Cancelled' would not appear 'In transit' for the same order ID.
+
+<!-- -->
+
+### 2.2 Data Import and Quality Assurance
+
+In this step, we imported the dataset using the concept of database driver between R and SQL and E-T-L.
+
+```{r dataloading, message=FALSE, warning=FALSE}
+#Import the data generating from Python
+Advertisements <- readr::read_csv("dataset/Advertisements.csv")
+Customers <- readr::read_csv("dataset/Customers.csv")
+Order_items <- readr::read_csv("dataset/Order_items.csv")
+Orders <- readr::read_csv("dataset/Orders.csv")
+Payments <- readr::read_csv("dataset/Payments.csv")
+Products <- readr::read_csv("dataset/Products.csv")
+Shipments <- readr::read_csv("dataset/Shipments.csv")
+Suppliers <- readr::read_csv("dataset/Suppliers.csv")
+map <- readr:: read_csv("Postcode districts.csv")
+```
+
+```{r writebacktodb}
+#Write data into the database using RSQLite function
+RSQLite::dbWriteTable(connection,"Advertisements",Advertisements,append=TRUE)
+RSQLite::dbWriteTable(connection,"Customers",Customers,append=TRUE)
+RSQLite::dbWriteTable(connection,"Order_items",Order_items,append=TRUE)
+RSQLite::dbWriteTable(connection,"Orders",Orders,append=TRUE)
+RSQLite::dbWriteTable(connection,"Payments",Payments,append=TRUE)
+RSQLite::dbWriteTable(connection,"Products",Products,append=TRUE)
+RSQLite::dbWriteTable(connection,"Shipments",Shipments,append=TRUE)
+RSQLite::dbWriteTable(connection,"Suppliers",Suppliers,append=TRUE)
+RSQLite::dbWriteTable(connection,"maps",map,append=TRUE)
+
+# In this section, if the dataset meets the constraints, the code can be executed without errors. Therefore, it can be concluded that our dataset has passed the quality and integrity checks.
+```
+
+-   Data Integrity Check for no. of rows and columns for each table
+
+```{r loop,message=FALSE,warning=FALSE,attr.source='.numberLines'}
+
+all_files <- list.files("dataset/")
+
+for (variable in all_files) {
+  this_filepath <- paste0("dataset/",variable)
+  this_file_contents <- readr::read_csv(this_filepath)
+  
+  number_of_rows <- nrow(this_file_contents)
+  number_of_columns <- ncol(this_file_contents)
+  
+  print(paste0("The file: ",variable,
+              " has: ",
+              format(number_of_rows,big.mark = ","),
+              " rows and ",
+              number_of_columns," columns"))
+}
+
+```
+
+-   Check if the first column of each file is a primary key
+
+```{r checkprimary,message=FALSE,warning=FALSE,attr.source='.numberLines'}
+#automate uni-testing #use this instead
+
+for (variable in all_files) {
+  this_filepath <- paste0("dataset/",variable)
+  this_file_contents <- readr::read_csv(this_filepath)
+  number_of_rows <- nrow(this_file_contents)
+  
+  print(paste0("Checking for: ",variable))
+  
+  print(paste0(" is ",nrow(unique(this_file_contents[,1]))==number_of_rows))
+}
+```
+
+-   Check if the first column of each file is a primary key as well as the checks for each entity
+
+```{r}
+dbGetQuery(connection, "PRAGMA table_info(Customers)")
+dbGetQuery(connection, "PRAGMA table_info(Orders)")
+dbGetQuery(connection, "PRAGMA table_info(Suppliers)")
+dbGetQuery(connection, "PRAGMA table_info(Products)")
+dbGetQuery(connection, "PRAGMA table_info(Advertisements)")
+dbGetQuery(connection, "PRAGMA table_info(Payments)")
+dbGetQuery(connection, "PRAGMA table_info(Order_items)")
+dbGetQuery(connection, "PRAGMA table_info(Shipments)")
+
+#The result shows the NOT NULL and type criteria for each table. Additinally, each table shows primary key as single value. Hence, there is no duplication in the records. 
+```
+
+## Part 3: Data Pipeline Generation
+
+### 3.1 Github Repository and Workflow Setup
+
+GitHub workflows streamline the software development lifecycle, making it more efficient, reliable, and collaborative. To collaborate out e-commerce project as a team, we created Github account. \[User id & link\] with the repository called "xxxxxx" \[Insert link\]
+
+\[Inset Github Repository Link\]
+
+### 3.2 Github Actions for Continuous Integration
+
+Automating data validation, database updates, and basic data analysis tasks using GitHub Actions improves efficiency, reliability, and scalability while ensuring consistency and integration with other tools in the development workflow.
+
+For our e-commerce project, we chose "xxxx.R" to present our data analysis sections and the update
+
+mention about html
+
+By incorporating Github workflows, it allows us to connect the database helps us to check new data entries every particular times.
+
+\[Link to workflow actions and show the changes in chart\]
+
+```{r}
+#Code to append data (we have updated data, do we need to put in main report or R script)
+
+
+```
+
+## Part 4
+
+### 4.1 Advanced Data Analysis in R
+
+To conduct advanced data analysis on our e-commerce database, we we created xx graphs to illustrate the insights of R by first, executing SQL query to retrieve data using RSQLite and DBI functions, then creating the new data frame by the analysis that we would like to present. To present our data, we applied various packages in R which could be described in the table below.
+
+| Functions                  | Description                                                                                    |
+|:-----------------|:-----------------------------------------------------|
+| tidyverse                  | Data manipulation and analysis in R                                                            |
+| ggplot2                    | Offers data visualisation tools especially for plots and graphs                                |
+| ggmap                      | Allows for easy integration of Google Maps and other mapping data into ggplot2                 |
+| plotly                     | Enables the creation of Interactive graphs                                                     |
+| lubridate                  | Data manipulation especially with time series data                                             |
+| leaflet and leaflet.extras | Customisable framework for creating interactive maps with additional features such as heatmaps |
+
+: Table 1: Functions incorporated for data analysis
+
+We have analysed the e-commerce database in xx areas below.
+
+1.  Customer distribution analysis based on the order amounts
+
+To analyse customer distribution analysis based on the order amounts, we have to join three tables, Customers, Orders and Orders Item and named it as "cus_o_oi". Customers table contains key data that we would like to analyse such as customer's date of birth whereas we use Orders to retract the order_id from Orders_items which has information about the order quantity for each order_id and cust_id.
+
+We begin with data preparation by creating the dataframe for the joined three tables.
+
+```{r}
+# Join "Customers", "Orders", and "Order_items" tables using inner join
+joint_cust_query <- "
+SELECT 
+    c.cust_id,
+    c.cust_dob,
+    o.order_id,
+    o.order_date,
+    oi.order_item_quantity,
+    oi.order_item_unit_price
+FROM 
+    order_items AS oi
+    JOIN orders AS o ON oi.order_id = o.order_id
+    JOIN customers AS c ON o.cust_id = c.cust_id;"
+
+
+cus_o_oi <- DBI::dbGetQuery(connection, joint_cust_query)
+
+# Maintain "cust_dob" and "order_date" columns to the same data type
+cus_o_oi$cust_dob <- as.Date(cus_o_oi$cust_dob)
+cus_o_oi$order_date <- as.POSIXct(cus_o_oi$order_date)
+```
+
+After that, we created the new data frame called "cust_analysis" to manipulate/analyse the data without interrupting the data above.
+
+```{r}
+# To begin with, we create the new column "cust_yob" to extract only year of birth data from customer's date of birth, then create another column "cust_age" from cust_yob.
+cust_analysis <- cus_o_oi %>%
+  mutate(cust_year_of_birth = lubridate::year(cust_dob),
+         cust_age = 2024 - cust_year_of_birth)
+
+
+
+#Then, we created cust_group data frame to overview current age group of customers
+cust_group <- cust_analysis %>% 
+              group_by(age_range = cut(cust_age, breaks = c(0, 20, 30, 40, 50, Inf), labels = c("Under 20", "21-30", "31-40", "41-50", "51+"))) %>%
+              summarize(total_customers = n(),
+                        average_age = mean(cust_age))
+#View the result
+cust_group
+```
+
+```{r}
+#Summarise Orders quantity based on Orders
+# Define custom age ranges
+age_ranges <- c("Under 20", "21-30", "31-40", "41-50", "51+")
+
+# Convert cust_age to factor with custom age ranges
+cust_analysis$cust_age_range <- cut(cust_analysis$cust_age, breaks = c(0, 20, 30, 40, 50, Inf), labels = age_ranges, right = FALSE)
+
+# Plot the data as a bar plot
+cust_order_plot <- plot_ly(data = cust_analysis, x = ~cust_age_range, y = ~order_item_quantity, type = 'bar', marker = list(color = '#1f77b4')) %>%
+  layout(xaxis = list(title = "Age Range"),
+         yaxis = list(title = "Total Order Items Quantity"),
+         title = "Total Order Items Quantity by Age Range")
+
+
+# View the result
+cust_order_plot
+```
+
+The result shows that the majority of the platform's customers are those who age from 21-30 and 31-40. This is useful for the platform to target the customers easier when they want to launch the campaign or promotions.
+
+2.  Analysis of the platform growth #can directly use cus_o_oi
+
+```{r}
+# To analyse the platform growth, we can directly use the data from cus_o_oi data frame
+order_analysis <- cus_o_oi %>%
+  mutate(
+    year = lubridate::year(order_date),  # Extract year
+    month = lubridate::month(order_date), # Extract month
+    order_value = order_item_quantity * order_item_unit_price # to get the order value
+  )
+
+# Convert year and month to a date format
+order_analysis$date <- as.Date(paste(order_analysis$year, order_analysis$month, "01", sep = "-"), "%Y-%m-%d")
+
+# Generate a line graph to the growth
+order_growth_plot <- ggplot(order_analysis, aes(x = date, y = order_value)) +
+  geom_line(color = "lightblue") +
+  geom_smooth(method = "loess", se = FALSE, color = "skyblue") +  # Add smoother
+   geom_area(fill = "lightgrey", alpha = 0.3) +
+  labs(x = "Date", y = "Order Value", title = "Order Value Growth per Quarter") +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "3 months") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display the line plot
+print(order_growth_plot)
+
+```
+
+3.  Supplier Analysis
+
+```{r}
+# Query the data from the database and create a data frame for supplier. 
+supplier_query <- "SELECT * FROM Suppliers"
+
+supplier_df <- DBI::dbGetQuery(connection, supplier_query)
+```
+
+```{r}
+# Mutate new column to specify which suppliers define as "Entity" or "Individual"
+supplier_df <- supplier_df %>%
+  mutate(supplier_type = if_else(
+    grepl("PLC|Inc|LLC|Ltd|Group", supplier_name, ignore.case = TRUE),
+    "Entity", "Individual"
+  ))
+
+#Group the supplier types
+supplier_analysis <- supplier_df %>%
+  group_by(supplier_type) %>%
+  summarize(count = n())
+
+# Plot the counts using ggplot
+supplier_plot <- ggplot(supplier_analysis, aes(x = supplier_type, y = count, fill = supplier_type)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Supplier Type", y = "Count", title = "Supplier Analysis") +
+  theme_minimal()
+
+#View the result
+supplier_plot
+```
+
+From the result, it could be seen that the majority of the sellers in e-commerce database is "". This is a useful information for the platform. For example, the high percentage of entity suppliers indicating professionalism and reliability so it increases customer trusts. As we set the assumption that the e-commerce is the start-up, the individual suppliers still high.
+
+4.  Payment method analysis
+
+```{r}
+# Query the data from the database and create a data frame for payment. 
+payment_query <- "SELECT * FROM Payments"
+
+payment_df <- DBI::dbGetQuery(connection, payment_query)
+```
+
+```{r}
+# Analyse payment method
+
+
+#Group the payment types
+payment_analysis <- payment_df %>%
+  group_by(payment_method) %>%
+  summarize(count = n())
+
+# Define colors for each payment method
+colors <- c("skyblue", "palegreen2", "pink", "peachpuff1")
+
+# Create pie chart using plotly
+pie_chart_payment <- plot_ly(
+  payment_analysis,
+  labels = ~payment_method,
+  values = ~count,
+  type = "pie",
+  marker = list(colors = colors)
+) %>%
+  layout(title = "Payment Analysis")
+
+# Display the pie chart
+pie_chart_payment
+```
+
+According to the result, it could be seen that the most popular method that is used by customer uses is "Credit Card" and "Debit Card". This information is useful for the platform to improve the payment performance and the ease of payment.
+
+5.Shipment Analysis: Geographical map
+
+```{r}
+# Create a data frame for shipment. Information of city, longitude and latitude from maps csv. file
+shipment_query <- "SELECT a.shipment_city AS City, b.Latitude AS shipment_latitude, b.Longitude AS shipment_longitude
+FROM shipments a
+JOIN maps b ON a.shipment_city = b.Town;"
+
+shipment_df <- DBI::dbGetQuery(connection, shipment_query)
+```
+
+```{r}
+# Input longitude and latitude details
+locations <- data.frame(
+  lon = shipment_df$shipment_longitude,
+  lat = shipment_df$shipment_latitude
+)
+
+# Create a UK map showing where shipments headed
+UK_map <- leaflet(locations) %>%
+  addTiles() %>%
+  addHeatmap(
+    lng = ~lon,
+    lat = ~lat,
+    blur = 0,
+    max= 4
+ )
+#Print the result
+UK_map
+```
+
+Based on the result, the heatmap shows where shipment mostly located which in the case is "xx". This figure is useful for the e-commerce company if the company would like to establish the delivery hub, which should be located where customer located the most based on the delivery information.
+
+6.  Order Analysis
+
+```{r}
+# Selecting order_id and date of order placed
+order_query <- "SELECT order_id AS Orders, order_date AS Date_Ordered
+FROM orders;"
+
+order_df <- DBI::dbGetQuery(connection, order_query)
+
+# Converting date format and creating a new variable for month
+order_df <- mutate(order_df, Date_Ordered = as.POSIXct(order_df$Date_Ordered, origin = "1970-01-01", tz = "UTC"),
+                   Month = format(Date_Ordered, "%b"))
+
+# Ordering months
+order_df$Month <- factor(order_df$Month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+
+# Plotting number of orders per month
+fig_order <- ggplot(order_df, aes(x = Month)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Orders Per Month", x = "Month", y = "Count")
+
+#View the result
+ggplotly(fig_order)
+```
+
+The order quantity graph allows us to see the growth of each month. In this case it could be seen that the quantity per month is average around 15 orders. However, it is obvious that order volumns decreases significantly in October, therefore, the platform may push the order volumns by launching more advertisement this month.
+
+7.  Advertisement Analysis
+
+```{r}
+# Selecting all orders placed based on ads_id
+ads_query <- "SELECT order_id AS Orders, ads_id AS Ads_ID, order_item_quantity AS Quantity_Ordered
+FROM order_items;"
+
+ads_order_items_df <- DBI::dbGetQuery(connection, ads_query)
+
+# Creating new column for presence of Advertisement
+ads_order_items_df <- mutate(ads_order_items_df, Ads_Present = ifelse(is.na(Ads_ID), "No Advertisement", "Advertisement Present"))
+
+# Factorising Ads Present column
+ads_order_items_df$Ads_Present <- as.factor(ads_order_items_df$Ads_Present)
+
+# Plot showing the differnce in orders placed with and without advertisements
+fig_ads <- ggplot(ads_order_items_df, aes(x = Ads_Present, fill = Ads_Present)) +
+  geom_bar() +
+  labs(title = "Distribution of Ads Presence", x = "Advertisement", y = "Number of Sales") +
+  theme(legend.position = "none")
+
+ggplotly(fig_ads)
+
+```
+
+From the result, it could be observed that advertisement present significantly impact the order amount. Therefore, this is a useful information for the platform to push the sales in a particular month as advertisement pushes the customers to purchase the product more.
+
+8.  Categories Analysis
+
+```{r}
+# Selecting Product ID, Category, and Order Date
+cat_query <- "SELECT a.product_id AS Product_ID, a.products_category AS Category, b.order_date AS Order_Date
+FROM Products a
+JOIN order_items c ON a.product_id = c.product_id
+JOIN Orders b ON b.order_id = c.order_id;"
+
+categories_df <- DBI::dbGetQuery(connection, cat_query)
+
+# Manipulating date, creating month column and counting number of times category was ordered in a month
+categories_df <- mutate(categories_df, Order_Date = as.POSIXct(categories_df$Order_Date, origin = "1970-01-01", tz = "UTC"),
+                   Month = format(Order_Date, "%b")) %>% select(Category, Month) %>% count(Category, Month, name = "Count")
+
+# Ordering months
+categories_df$Month <- factor(categories_df$Month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+
+# Plot showing number of orders placed each month across all categories
+fig_cat <- ggplot(categories_df, aes(x = Month, y = Count, group=Category, color=Category)) + geom_point() +geom_line()
+
+#View the result
+ggplotly(fig_cat)
+
+```
+
+The category plot allows us to observe which categories people purchase the most in each month. This is beneficial to the platform to launch the campaign on each month based on the data. For example xxxx 's sales is peak during xxx. So the platform could encourage the suppliers to launch campaigns related to xxx during xxxx.
+
+After Analysis, we have to disconnect the database to improve the overall performance of the database system by reducing the number of active connections it needs to manage.
+
+```{r}
+#Disconnect Database
+RSQLite::dbDisconnect(connection)
+```
+
+## 4.2 E-commerce Comprehensive report
+
+**Overview**
+
+From 2018 to 2024, it is noticed that the e-commerce business has maintained stables sales with little growth and high levels of fluctuation. To assist the business in achieving its growth potential, we first look at the demographic of customers and suppliers as this would enable us to tailor our targeting approaches.
+
+```{r, echo=FALSE}
+order_growth_plot
+```
+
+One way to improve the growth of sales is through advertisements. As seen from the graph below, the presence of advertisements has a positive significant impact on the number of sales.
+
+```{r, echo=FALSE}
+fig_ads
+```
+
+**Customer Analysis**
+
+Advertisements can be tailored to customers of a certain region and age group. To decide on the advertising strategies, we look at the age groups and the geographical locations of shipments. Most of the people who make purchases on the e-commerce platform are below the age of 50 with the largest groups being between 21-30 and 31-40.
+
+```{r, echo=FALSE}
+cust_order_plot
+```
+
+Additionally, the following geographical heat map shows the delivery locations of shipments. The heatmap changes from light blue, green, yellow, and orange to reflect the increasing intensity of sales in a region. It can be seen in areas such as London, Bristol, Edinburgh etc that sales are high.
+
+```{r, echo=FALSE}
+UK_map
+```
+
+With the above information, the e-commerce platform should tailor advertisements in the identified areas and to the 21-40 age group.
+
+**Supplier Analysis**
+
+To coax suppliers into purchasing the advertisements, we assess their expenditure ability and sales revenue. Most of the suppliers are individuals with a small minority being entities or companies. This could hint to suppliers being more cautious with advertising spending as they do not have high spending power. Cheaper and smaller advertisement packages can be tailored for suppliers.
+
+```{r, echo=FALSE}
+supplier_plot
+```
+
+It would be most impactful to persuade suppliers in months when sales are low. From our analysis, in the months of May, June, August and October sales are lower than in other months and suppliers would be incentivised to advertise their products then.
+
+```{r, echo=FALSE}
+fig_order
+```
+
+To further value add to the analysis, we are able to identify the number of sales across different categories across all months. For example, sales are high for most suppliers in February except for suppliers selling travel essentials. Hence, utilizing both the orders by month and categories graphs we can tailor advertisements by month and categories for all suppliers.
+
+```{r, echo=FALSE}
+fig_cat
+```
+
+Lastly suppliers should also focus on expanding their payment methods as most customers opt for Credit Card, Debit Card, and PayPal as payment methods. In doing so, they would not lose sales to other suppliers that offer a wider range of payment options.
+
+```{r, echo=FALSE}
+pie_chart_payment
+```
+
+## Conclusion
+
+In the initial phases we decided on the various entities that would be present in the e-commerce platforms and determined their relationships with each other, which formed the foundation of the entire database. In the next phase of table creation, emphasis was placed on the constraints of each attribute to ensure sufficient data quality checks. This would be crucial as unsatisfactory data formatting would render the following parts redundant.
+
+Using python, data was generated for all entities and every table underwent scrutinous checks to ensure data quality and integrity. Subsequently, a GitHub repository and workflow were established to automate the verification and updating of new data as well as to perform analysis tasks every 24 hours. This automation significantly reduces manual effort and enables access to multiple users.
+
+Lastly, a deep analysis was conducted to make recommendations to the e-commerce platform to improve their outreach efforts. For ease of access, the new data uploaded configures the graphs every few hours automatically in the GitHub repository.
+
+## Appendices
+
+### Appendix: Python code for data generation in Part 2.1
+
+```{python}
+
+# """
+# import pandas as pd
+# import numpy as np
+# from faker import Faker
+# import random
+# from datetime import datetime, timedelta, date
+# 
+# # Initialize Faker and seed for reproducibility
+# fake = Faker('en_GB')
+# np.random.seed(0)
+# Faker.seed(0)
+# random.seed(0)
+# 
+# # Load postcode data
+# df = pd.read_excel('Postcode districts.xlsx', "Postcode districts")
+# df_u = pd.read_excel('units.xlsx', "units")
+# df_s = pd.read_excel('sectors.xlsx', "sectors")
+# 
+# # Process postcode data for later use
+# df_s['Postcode'] = df_s['Sector'].str.split().str[0]
+# df['probability'] = df['Population'] / df['Population'].sum()
+# df_u['Unit'] = df_u['Unit'].astype(str)
+# postcode = pd.merge(df_s, df[['Postcode', 'probability', 'Region']], on='Postcode', how='left')
+# 
+# # Function to generate random dates within a given range
+# def random_dates(start, end, n=10):
+#     start_u = start.value//10**9
+#     end_u = end.value//10**9
+#     return pd.to_datetime(np.random.randint(start_u, end_u, n), unit='s')
+# 
+# 
+# # Suppliers
+# num_records=50
+# 
+# # postcode
+# random_suppliers_place = postcode.sample(n=num_records, weights='probability', replace = True).reset_index(drop=True)
+# random_suppliers_place_u = df_u.sample(n=num_records, replace = True).reset_index(drop=True)
+# 
+# # Create the Suppliers dataframe
+# Suppliers = pd.DataFrame({
+#     'supplier_id': [fake.bothify(text='????##??###', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(num_records)],
+#     'supplier_name': [fake.company() for _ in range(num_records)],
+#     'supplier_city': random_suppliers_place['Region'],
+#     'supplier_address': [fake.street_address() for _ in range(num_records)],
+#     'supplier_postcode': random_suppliers_place['Sector']+random_suppliers_place_u["Unit"],
+#     'supplier_email': [fake.email() for _ in range(num_records)],
+#     'supplier_contact': [fake.numerify(text='07#########') for _ in range(num_records)]
+# })
+# 
+# 
+# 
+# 
+# # Products
+# num_records = 80
+# 
+# # FK: supplier_id
+# # Generating supplier IDs for the products by randomly selecting from supplier IDs in the Suppliers dataframe
+# supplier_ids_from_Suppliers = np.random.choice(Suppliers['supplier_id'], num_records, replace=True)
+# 
+# 
+# # Mapping of product categories to a list of product names for generating realistic product data
+# category_to_products = {
+#     "Clothing_and_Accessories": ["Shirt", "Pants", "Sneakers", "Bag", "Watch", "Sunglasses", "Hat", "Jacket", "Scarf", "Belt", "Sweater", "Boots", "Perfume", "Bracelet", "Earrings", "Necklace", "Ring", "Tie", "Wallet", "Clutch", "Socks", "Gloves", "Cap", "Sunglass Case"],
+#     "Technology_and_Electronics": ["Laptop Sleeve", "Wireless Earbuds", "Smartphone Case", "Portable Charger", "Bluetooth Speaker", "Action Camera", "Travel Adapter"],
+#     "Home_and_Office": ["Coffee Mug", "Wall Art", "Tablet Cover", "Bookshelf", "Pillow", "Blanket", "Desk Lamp", "Desk Organizer", "Plant Pot", "Wall Clock", "Scented Candle", "Photo Frame", "Vase", "Water Bottle", "Notebook"],
+#     "Sports_and_Leisure": ["Yoga Mat", "Gym Bag", "Running Belt", "Ski Goggles", "Beach Towel", "Sports Bottle", "Jump Rope", "Dumbbells", "Tennis Racket", "Football", "Basketball", "Yoga Pants", "Sports Bra", "Cycling Shorts", "Swim Goggles", "Surfboard Wax", "Skateboard", "Inline Skates", "Snowboard", "Ski Jacket", "Yoga Blocks", "Resistance Bands"],
+#     "Travel_Essentials": ["Luggage Tag", "Passport Holder", "Travel Pillow", "Sleeping Mask", "Book Light", "Backpack", "Travel Adapter", "Portable Charger", "Sketch Pad", "Paint Set", "Guitar Picks", "Camping Tent", "Sleeping Bag", "Hiking Boots", "Backpack Cooler", "Water Filter", "Camping Stove", "Headlamp", "Climbing Rope", "Compass", "Binoculars", "Field Guide", "Fishing Rod", "Tackle Box", "Hammock", "Fire Starter", "First Aid Kit", "Insect Repellent", "Sunscreen", "Lip Balm"]
+# }
+# 
+# # List of colors for generating color variations of products
+# colors = ["", "Red", "Blue", "Green", "Black", "White", "Yellow", "Purple", "Orange", "Pink", "Gray", "Teal", "Ivory", "Lavender", "Crimson", "Navy", "Olive", "Maroon", "Aqua", "Coral", "Charcoal"]
+# 
+# # Randomly selecting product categories for each product record
+# Products_category = np.random.choice(list(category_to_products.keys()), num_records, replace=True)
+# 
+# # Generating product names by combining randomly selected colors with product names from the category
+# product_names = []
+# for category in Products_category:
+#     product = np.random.choice(category_to_products[category])
+#     color = np.random.choice(colors)
+#     product_name = " ".join(filter(None, [color, product]))  # Combining color and product, excluding any empty strings
+#     product_names.append(product_name)
+# 
+# # product_price
+# # Generating product prices using a normal distribution
+# mean = 35
+# variance = 204
+# std = np.sqrt(variance)  
+# 
+# Products_price = np.random.normal(mean, std, size=num_records)
+# Products_price_clipped = np.clip(Products_price, 1, np.inf)
+# Products_price_2 = np.round(Products_price_clipped,2)
+# 
+# # Create the Products dataframe
+# Products = pd.DataFrame({
+#     'product_id': np.random.choice(range(1000000, 10000000), num_records, replace=False),
+#     'supplier_id': supplier_ids_from_Suppliers,
+#     'products_category': Products_category,
+#     'product_name': product_names,
+#     'product_description': [fake.text(max_nb_chars=200) for _ in range(num_records)],
+#     'product_price': Products_price_2,
+#     'product_length': np.round(np.random.uniform(0.1, 100, num_records), 2),
+#     'product_height': np.round(np.random.uniform(0.1, 100, num_records), 2),
+#     'product_width': np.round(np.random.uniform(0.1, 100, num_records), 2),
+#     'product_weight': np.round(np.random.uniform(0.1, 100, num_records), 2),
+# })
+# 
+# 
+# # Advertisements
+# num_Advertisements = 20
+# 
+# # FK: supplier_id, product_id
+# # Select a random subset of products from the Products dataframe to be associated with advertisements
+# Products_records_for_Advertisements = Products.sample(n=num_Advertisements)
+# 
+# # Generate a random discount percentage for each selected product for advertisement
+# product_discount = np.round(np.random.uniform(10, 80, num_Advertisements), 2)
+# 
+# # Calculate the discount price by applying the discount percentage to the original product price
+# discount_price = Products_records_for_Advertisements['product_price'] * (product_discount / 100)
+# 
+# # Create the Advertisements dataframe
+# Advertisements = pd.DataFrame({
+#     'ads_id': np.random.choice(range(100000, 1000000), num_Advertisements, replace=False),
+#     'product_id': Products_records_for_Advertisements['product_id'],  
+#     'supplier_id': Products_records_for_Advertisements['supplier_id'], 
+#     'ads_details': [fake.text(max_nb_chars=200) for _ in range(num_Advertisements)],
+#     'ads_name': [fake.catch_phrase() for _ in range(num_Advertisements)],
+#     'product_discount': product_discount,
+#     'discount_price': round(discount_price,2)
+# })
+# 
+# 
+# # Customers
+# Customers_records = 60
+# 
+# # FK: supplier_id, product_id
+# 
+# # cust_postcode
+# # Generate customer locations based on a predefined probability distribution
+# # Assuming 'postcode' is a DataFrame with postcode information and 'probability' column for weighted selection
+# random_Customers_place = postcode.sample(n=Customers_records, weights='probability', replace = True).reset_index(drop=True)
+# random_Customers_place_u = df_u.sample(n=Customers_records, replace = True).reset_index(drop=True)
+# 
+# # cust_dob
+# # Function to generate custom dates of birth based on a given age distribution
+# def custom_date_of_birth(age_distribution, total_count):
+#     today = date.today()
+#     dob_list = []
+# 
+# 
+#     # Generate DOBs based on the proportion of each age in the distribution
+#     for age, proportion in age_distribution.items():
+#         age_count = int(proportion * total_count)
+#         for _ in range(age_count):
+#             start_of_year = today.replace(year=today.year - age - 1, month=1, day=1)
+#             end_of_year = today.replace(year=today.year - age, month=12, day=31)
+#             random_days = random.randint(0, (end_of_year - start_of_year).days)
+#             dob = start_of_year + timedelta(days=random_days)
+#             dob_list.append(dob)
+# 
+#     # Fill the remainder with random DOBs within a specified age range if necessary
+#     while len(dob_list) < total_count:
+#         dob_list.append(fake.date_of_birth(minimum_age=18, maximum_age=84))
+# 
+#     return dob_list
+# 
+# # Distribution of ages for the customer base
+# age_distribution = {
+#     18: 2.5,
+#     19: 2.4479166666666665,
+#     20: 2.3958333333333335,
+#     21: 2.34375,
+#     22: 2.2916666666666665,
+#     23: 2.2395833333333335,
+#     24: 2.1875,
+#     25: 2.1354166666666665,
+#     26: 2.0833333333333335,
+#     27: 2.03125, 
+#     28: 1.9791666666666665,
+#     29: 1.9270833333333333,
+#     30: 1.875,
+#     31: 1.8229166666666665,
+#     32: 1.7708333333333333,
+#     33: 1.71875,
+#     34: 1.6666666666666665,
+#     35: 1.6145833333333333,
+#     36: 1.5625,
+#     37: 1.5104166666666665,
+#     38: 1.4583333333333333,
+#     39: 1.40625,
+#     40: 1.3541666666666665,
+#     41: 1.3020833333333333,
+#     42: 1.25,
+#     43: 1.1979166666666665,
+#     44: 1.1458333333333333,
+#     45: 1.09375,
+#     46: 1.0416666666666665,
+#     47: 0.9895833333333333,
+#     48: 0.9375,
+#     49: 0.8854166666666665,
+#     50: 0.8333333333333333,
+#     51: 0.78125,
+#     52: 0.7291666666666665,
+#     53: 0.6770833333333333,
+#     54: 0.625,
+#     55: 0.5729166666666665,
+#     56: 0.5208333333333333,
+#     57: 0.46875,
+#     58: 0.4166666666666665,
+#     59: 0.36458333333333304,
+#     60: 0.3125,
+#     61: 0.2604166666666665,
+#     62: 0.20833333333333304,
+#     63: 0.15625,
+#     64: 0.10416666666666652,
+#     65: 0.05208333333333304,
+#     66: 0.0012739480145552728,
+#     67: 0.008171742981025524,
+#     68: 0.0035746422946617814,
+#     69: 0.002478415597879772,
+#     70: 0.0004604900089314778,
+#     71: 0.00046041242516873897,
+#     72: 0.000162447611697229,
+#     73: 0.005459999563880112,
+#     74: 0.002495083108856552,
+#     75: 0.003342542578607826,
+#     76: 5.646503074805896e-05,
+#     77: 0.009511301076487677,
+#     78: 0.00484971899540793,
+#     79: 0.0006479784856025557,
+#     80: 0.0005447943398265171,
+#     81: 0.0005500404254124784,
+#     82: 0.000984787594318387,
+#     83: 0.002019581990210183,
+#     84: 0.001535294725489966,
+#     85: 0.0009344811788715336,
+#     86: 0.0025691653056934675
+#  }
+# 
+# 
+# # Generate custom DOB list based on the age distribution
+# custom_dobs = custom_date_of_birth(age_distribution, Customers_records)
+# custom_dobs = np.random.choice(custom_dobs, Customers_records, replace=True)
+# 
+# 
+# 
+# # Customer ID
+# cust_id = [fake.bothify(text='????##??###', letters='abcdefghijklmnopqrstuvwxyz')for _ in range(Customers_records)]
+# 
+# # Referral logic to occasionally include a referral ID
+# cust_referral_choices = cust_id + [None] * (Customers_records // 5)
+# cust_referral_id = np.random.choice(cust_referral_choices, Customers_records, replace=True)
+# 
+# # Create the Customers dataframe
+# Customers = pd.DataFrame({
+#     'cust_id': cust_id,
+#     'cust_contact': [fake.numerify(text='07#########') for _ in range(Customers_records)],
+#     'cust_email': [fake.email() for _ in range(Customers_records)],
+#     'cust_dob': custom_dobs,
+#     'cust_gender': np.random.choice(['M', 'F', 'O'], Customers_records),
+#     'cust_fname': [fake.first_name() for _ in range(Customers_records)],
+#     'cust_lname': [fake.last_name() for _ in range(Customers_records)],
+#     'cust_city': random_Customers_place['Region'],
+#     'cust_postcode': random_Customers_place['Sector']+random_Customers_place_u["Unit"],
+#     'cust_address': [fake.street_address() for _ in range(Customers_records)],
+#     'cust_active': np.random.choice([True, False], Customers_records),
+#     'cust_referral_id': cust_referral_id,
+#     'cust_type': np.random.choice(['Regular', 'Premium'], Customers_records),
+#     'cust_date_created': [fake.date_between(start_date='-5y', end_date='today') for _ in range(Customers_records)]
+# })
+# 
+# 
+# # Orders 
+# num_records = 200
+# # FK:supplier_id
+# # Randomly select customer IDs from the Customers dataframe to link orders to customers
+# cust_id_from_Customers = np.random.choice(Customers['cust_id'], num_records, replace=True)
+# 
+# 
+# # Generate the Orders dataframe
+# Orders = pd.DataFrame({
+#     'order_id': np.random.choice(range(10000000, 100000000), num_records, replace=False),
+#     'cust_id': cust_id_from_Customers,
+#     'order_status': np.random.choice(['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'], num_records),
+#     'order_date': random_dates(pd.to_datetime('2019-01-01'), pd.to_datetime('today'), num_records)
+# })
+# 
+# 
+# 
+# # Order_items
+# # Setting the total number of order items to be created
+# num_Order_items = 300
+# # Dividing the order items into those coming directly from products and those promoted via advertisements
+# num_Order_items_from_Products = 108
+# num_Order_items_from_Advertisements = num_Order_items-num_Order_items_from_Products
+# 
+# # Sampling records from Products and Advertisements DataFrames for order items
+# Products_records_for_Order_items = Products.sample(n=num_Order_items_from_Products, replace=True)
+# Orders_for_Order_items = Orders.sample(n=num_Order_items, replace=True)
+# Advertisements_records_for_Order_items = Advertisements.sample(n=num_Order_items_from_Advertisements, replace=True)
+# 
+# 
+# 
+# # Combining unit prices for items sourced from products directly and those via advertisements
+# order_order_item_unit_price = np.concatenate((
+#     Products_records_for_Order_items['product_price'],
+#     Advertisements_records_for_Order_items['discount_price']
+# ))
+# 
+# # Gathering product IDs, combining both from direct product sales and those referenced in advertisements
+# product_ids = np.concatenate((
+#     Products_records_for_Order_items['product_id'].values,
+#     Advertisements_records_for_Order_items['product_id'].values  
+# ))
+# 
+# 
+# # Creating advertisement IDs array, filling with None for direct product sales, and actual ad IDs for advertised products
+# advertisement_ids = np.concatenate((
+#     np.array([None] * num_Order_items_from_Products),  
+#     Advertisements_records_for_Order_items['ads_id'].values  
+# ))
+# 
+# 
+# # Generating order item quantities based on a normal distribution, then clipping to enforce minimums and rounding
+# mean = 3.8
+# variance = 2
+# std = np.sqrt(variance)  
+# order_item_quantity = np.random.normal(mean, std, size=num_Order_items)
+# order_item_quantity_clipped = np.clip(order_item_quantity, 1, np.inf)
+# order_item_quantity_int = np.round(order_item_quantity_clipped)
+# 
+# # Generate the Order_items dataframe
+# Order_items = pd.DataFrame({
+#     'order_item_id': np.random.choice(range(100000, 100000000), num_Order_items, replace=False),
+#     'order_id': Orders_for_Order_items['order_id'],
+#     'product_id': product_ids,
+#     'ads_id': advertisement_ids,
+#     'order_item_quantity': order_item_quantity_int,  
+#     'order_item_unit_price': order_order_item_unit_price,
+#     'order_item_status': Orders_for_Order_items['order_status']
+# })
+# 
+# # Shipment
+# # Filter Orders DataFrame to exclude 'Pending' and 'Cancelled' statuses
+# Orders_non_pending = Orders[(Orders['order_status'] != 'Pending') & (Orders['order_status'] != 'Cancelled')].copy().reset_index(drop=True)
+# # Merge customer details into the filtered Orders DataFrame to ensure shipment information is complete
+# Orders_non_pending_with_cust = pd.merge(
+#     Orders_non_pending, 
+#     Customers[['cust_id', 'cust_city', 'cust_postcode', 'cust_address']], 
+#     on='cust_id', 
+#     how='left'
+# ).reset_index(drop=True)
+# 
+# # Determine the number of shipments based on the filtered Orders DataFrame
+# num_shipments = len(Orders_non_pending)
+# 
+# 
+# # Define a function to randomly generate shipment statuses based on the order status
+# def get_random_shipment_status(row):
+#     if row['order_status'] == 'Processing':
+#         return np.random.choice(['Pending', 'Cancelled'])
+#     elif row['order_status'] == 'Shipped':
+#         return np.random.choice(['In Transit', 'Delivered', 'Cancelled'])
+#     elif row['order_status'] == 'Delivered':
+#         return 'Delivered'  
+#     else:
+#         return 'Unknown'  
+# 
+# # Apply the shipment status function across the DataFrame
+# Orders_non_pending['shipment_status'] = Orders_non_pending.apply(get_random_shipment_status, axis=1)
+# 
+# # Convert 'order_date' from datetime to date for consistency in shipment records
+# Orders_non_pending['order_date'] = Orders_non_pending['order_date'].dt.date
+# 
+# # Calculate shipment dates by adding a random number of days to the order date
+# shipment_date = Orders_non_pending['order_date'] + pd.to_timedelta(np.random.randint(1, 11, size=num_shipments), unit='D')
+# 
+# # Generate the Shipments dataframe
+# Shipments = pd.DataFrame({
+#     'shipment_id': [fake.bothify(text='???##########').lower() for _ in range(num_shipments)],
+#     'order_id': Orders_non_pending['order_id'],
+#     'cust_id': Orders_non_pending['cust_id'],
+#     'shipment_date': shipment_date,
+#     'shipment_company': [fake.company() for _ in range(num_shipments)],
+#     'shipment_address': Orders_non_pending_with_cust['cust_address'],
+#     'shipment_postcode': Orders_non_pending_with_cust['cust_postcode'],
+#     'shipment_city': Orders_non_pending_with_cust['cust_city'],
+#     'shipment_status': Orders_non_pending['shipment_status']
+# })
+# 
+# 
+# # Payment
+# # Determine the number of payments based on the number of order items
+# num_payments = len(Order_items)
+# 
+# # Filter order items to separate those in non-pending and non-cancelled statuses
+# order_item_non_pending = Order_items[(Order_items['order_item_status'] != 'Pending') & (Order_items['order_item_status'] != 'Cancelled')].copy()
+# 
+# # Define conditions for different order item statuses
+# conditions = [
+#     order_item_non_pending['order_item_status'] == 'Processing',
+#     order_item_non_pending['order_item_status'] == 'Shipped',
+#     order_item_non_pending['order_item_status'] == 'Delivered'
+# ]
+# 
+# # Define choices for payment statuses based on the order item status
+# choices = [
+#     np.random.choice(['Pending', 'Processing', 'Cancelled', 'Failed', 'Completed']),
+#     np.random.choice(['Completed', 'Processing', 'Cancelled']),
+#     np.random.choice(['Completed', 'Processing', 'Cancelled'])
+# ]
+# 
+# # Apply conditions and choices to assign payment statuses for non-pending order items
+# order_item_non_pending['payment_status'] = np.select(conditions, choices)
+# 
+# # Filter order items for pending or cancelled statuses
+# order_item_pending = Order_items[(Order_items['order_item_status'] == 'Pending') | (Order_items['order_item_status'] == 'Cancelled')].copy()
+# 
+# # Function to assign random payment status for non-pending order items
+# def get_random_payment_status(row):
+#     if row['order_item_status'] == 'Processing':
+#         return np.random.choice(['Pending', 'Processing', 'Cancelled', 'Failed', 'Completed'])
+#     elif row['order_item_status'] == 'Shipped':
+#         return np.random.choice(['Completed', 'Processing', 'Cancelled'])
+#     elif row['order_item_status'] == 'Delivered':
+#         return np.random.choice(['Completed', 'Processing', 'Cancelled'])
+#     else:
+#         return 'Unknown'  
+# 
+# # Apply the function to assign payment statuses for non-pending order items
+# order_item_non_pending['payment_status'] = order_item_non_pending.apply(get_random_payment_status, axis=1)
+# 
+# # Function to assign random payment status for pending order items
+# def get_random_payment_status_for_pending(row):
+#     if row['order_item_status'] == 'Pending':
+#         return np.random.choice(['Pending', 'Processing', 'Completed', 'Failed'])
+#     elif row['order_item_status'] == 'Cancelled':
+#         return np.random.choice(['Refund Completed', 'Refund Processing', 'Refund Failed'])
+#     else:
+#         return 'Unknown'
+# 'Pending', 'Processing', 'Completed', 'Failed', 'Refund Completed', 'Refund Processing', 'Refund Failed', 'Unknown'
+# 
+# # Apply the function to assign payment statuses for pending and cancelled order items
+# order_item_pending['payment_status'] = order_item_pending.apply(get_random_payment_status_for_pending, axis=1)
+# 
+# # Combine non-pending and pending order items into a single DataFrame
+# order_item_records_for_payments = pd.concat([order_item_non_pending, order_item_pending], ignore_index=True)
+# 
+# # Merge customer IDs from Orders DataFrame into the payment records
+# order_item_records_with_cust_id = pd.merge(order_item_records_for_payments, Orders[['order_id', 'cust_id']], on='order_id', how='left')
+# 
+# # Define weights for different payment methods to simulate real-world usage distribution
+# weights_payment_method= [0.41, 0.328, 0.182, 0.08]
+# 
+# # Generate the Order_items dataframe
+# Payments = pd.DataFrame({
+#     'payment_id': [fake.bothify(text='????##??###', letters='abcdefghijklmnopqrstuvwxyz')for _ in range(num_payments)],
+#     'cust_id': order_item_records_with_cust_id['cust_id'],
+#     'order_item_id': order_item_records_for_payments['order_id'],
+#     'payment_status': order_item_records_for_payments['payment_status'],
+#     'payment_method': np.random.choice(['Credit Card', 'Debit Card', 'PayPal', 'Bank Transfer'], size=num_payments, p = weights_payment_method),
+# })
+# 
+# # Remove Order_items
+# Order_items = Order_items.drop(columns=['order_item_status'])
+# 
+# 
+# # Export all the DataFrames to CSV files
+# Suppliers.to_csv('Suppliers.csv', index=False)
+# Advertisements.to_csv('Advertisements.csv', index=False)
+# Orders.to_csv('Orders.csv', index=False)
+# Order_items.to_csv('Order_items.csv', index=False)
+# Shipments.to_csv('Shipments.csv', index=False)
+# Payments.to_csv('Payments.csv', index=False)
+# Customers.to_csv('Customers.csv', index=False)
+# Products.to_csv('Products.csv', index=False)
+# 
+# 
+# 
+# 
+# """
+# new data
+# """
+# 
+# df = pd.read_excel('Postcode districts.xlsx', "Postcode districts")
+# df_u = pd.read_excel('units.xlsx', "units")
+# df_s = pd.read_excel('sectors.xlsx', "sectors")
+# df_s['Postcode'] = df_s['Sector'].str.split().str[0]
+# df['probability'] = df['Population'] / df['Population'].sum()
+# df_u['Unit'] = df_u['Unit'].astype(str)
+# postcode = pd.merge(df_s, df[['Postcode', 'probability', 'Region']], on='Postcode', how='left')
+# 
+# def random_dates(start, end, n=10):
+#     start_u = start.value//10**9
+#     end_u = end.value//10**9
+#     return pd.to_datetime(np.random.randint(start_u, end_u, n), unit='s')
+# 
+# # Suppliers
+# num_records=20
+# 
+# # postcode
+# random_suppliers_place = postcode.sample(n=num_records, weights='probability', replace = True).reset_index(drop=True)
+# random_suppliers_place_u = df_u.sample(n=num_records, replace = True).reset_index(drop=True)
+# 
+# r = random_suppliers_place['Sector']+random_suppliers_place_u["Unit"]
+# Suppliers = pd.DataFrame({
+#     'supplier_id': [fake.bothify(text='????##??###', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(num_records)],
+#     'supplier_name': [fake.company() for _ in range(num_records)],
+#     'supplier_city': random_suppliers_place['Region'],
+#     'supplier_address': [fake.street_address() for _ in range(num_records)],
+#     'supplier_postcode': random_suppliers_place['Sector']+random_suppliers_place_u["Unit"],
+#     'supplier_email': [fake.email() for _ in range(num_records)],
+#     'supplier_contact': [fake.numerify(text='07### ######') for _ in range(num_records)]
+# })
+# 
+# 
+# 
+# 
+# # Products
+# num_records = 10
+# 
+# # FK:supplier_id
+# supplier_ids_from_Suppliers = np.random.choice(Suppliers['supplier_id'], num_records, replace=True)
+# 
+# 
+# # Category to product list mapping
+# category_to_products = {
+#     "Clothing_and_Accessories": ["Shirt", "Pants", "Sneakers", "Bag", "Watch", "Sunglasses", "Hat", "Jacket", "Scarf", "Belt", "Sweater", "Boots", "Perfume", "Bracelet", "Earrings", "Necklace", "Ring", "Tie", "Wallet", "Clutch", "Socks", "Gloves", "Cap", "Sunglass Case"],
+#     "Technology_and_Electronics": ["Laptop Sleeve", "Wireless Earbuds", "Smartphone Case", "Portable Charger", "Bluetooth Speaker", "Action Camera", "Travel Adapter"],
+#     "Home_and_Office": ["Coffee Mug", "Wall Art", "Tablet Cover", "Bookshelf", "Pillow", "Blanket", "Desk Lamp", "Desk Organizer", "Plant Pot", "Wall Clock", "Scented Candle", "Photo Frame", "Vase", "Water Bottle", "Notebook"],
+#     "Sports_and_Leisure": ["Yoga Mat", "Gym Bag", "Running Belt", "Ski Goggles", "Beach Towel", "Sports Bottle", "Jump Rope", "Dumbbells", "Tennis Racket", "Football", "Basketball", "Yoga Pants", "Sports Bra", "Cycling Shorts", "Swim Goggles", "Surfboard Wax", "Skateboard", "Inline Skates", "Snowboard", "Ski Jacket", "Yoga Blocks", "Resistance Bands"],
+#     "Travel_Essentials": ["Luggage Tag", "Passport Holder", "Travel Pillow", "Sleeping Mask", "Book Light", "Backpack", "Travel Adapter", "Portable Charger", "Sketch Pad", "Paint Set", "Guitar Picks", "Camping Tent", "Sleeping Bag", "Hiking Boots", "Backpack Cooler", "Water Filter", "Camping Stove", "Headlamp", "Climbing Rope", "Compass", "Binoculars", "Field Guide", "Fishing Rod", "Tackle Box", "Hammock", "Fire Starter", "First Aid Kit", "Insect Repellent", "Sunscreen", "Lip Balm"]
+# }
+# 
+# # Colors
+# colors = ["", "Red", "Blue", "Green", "Black", "White", "Yellow", "Purple", "Orange", "Pink", "Gray", "Teal", "Ivory", "Lavender", "Crimson", "Navy", "Olive", "Maroon", "Aqua", "Coral", "Charcoal"]
+# 
+# # Randomly select product categories
+# Products_category = np.random.choice(list(category_to_products.keys()), num_records, replace=True)
+# 
+# # Generate product names based on category
+# product_names = []
+# for category in Products_category:
+#     product = np.random.choice(category_to_products[category])
+#     color = np.random.choice(colors)
+#     product_name = " ".join(filter(None, [color, product]))  # Combining color and product, excluding any empty strings
+#     product_names.append(product_name)
+# 
+# 
+# 
+# # price
+# mean = 35
+# variance = 204
+# std = np.sqrt(variance)  
+# 
+# Products_price = np.random.normal(mean, std, size=num_records)
+# 
+# Products_price_clipped = np.clip(Products_price, 1, np.inf)
+# 
+# 
+# Products_price_2 = np.round(Products_price_clipped,2)
+# 
+# 
+# Products = pd.DataFrame({
+#     'product_id': np.random.choice(range(1000000, 10000000), num_records, replace=False),
+#     'supplier_id': supplier_ids_from_Suppliers,
+#     'products_category': Products_category,
+#     'product_name': product_names,
+#     'product_description': [fake.text(max_nb_chars=200) for _ in range(num_records)],
+#     'product_price': Products_price_2,
+#     'product_length': np.round(np.random.uniform(0.1, 100, num_records), 2),
+#     'product_height': np.round(np.random.uniform(0.1, 100, num_records), 2),
+#     'product_width': np.round(np.random.uniform(0.1, 100, num_records), 2),
+#     'product_weight': np.round(np.random.uniform(0.1, 100, num_records), 2),
+# })
+# 
+# 
+# # Advertisements
+# num_Advertisements = 5
+# # FK: supplier_id, product_id
+# Products_records_for_Advertisements = Products.sample(n=num_Advertisements)
+# 
+# product_discount = np.round(np.random.uniform(10, 80, num_Advertisements), 2)
+# discount_price = Products_records_for_Advertisements['product_price'] * (product_discount / 100)
+# Advertisements = pd.DataFrame({
+#     'ads_id': np.random.choice(range(100000, 1000000), num_Advertisements, replace=False),
+#     'product_id': Products_records_for_Advertisements['product_id'],  
+#     'supplier_id': Products_records_for_Advertisements['supplier_id'], 
+#     'ads_details': [fake.text(max_nb_chars=200) for _ in range(num_Advertisements)],
+#     'ads_name': [fake.catch_phrase() for _ in range(num_Advertisements)],
+#     'product_discount': product_discount,
+#     'discount_price': round(discount_price,2)
+# })
+# 
+# 
+# # Customers
+# Customers_records = 20
+# # FK: supplier_id, product_id
+# random_Customers_place = postcode.sample(n=Customers_records, weights='probability', replace = True).reset_index(drop=True)
+# random_Customers_place_u = df_u.sample(n=Customers_records, replace = True).reset_index(drop=True)
+# 
+# # DOB
+# def custom_date_of_birth(age_distribution, total_count):
+#     today = date.today()
+#     dob_list = []
+# 
+#     for age, proportion in age_distribution.items():
+#         age_count = int(proportion * total_count)
+#         for _ in range(age_count):
+#             start_of_year = today.replace(year=today.year - age - 1, month=1, day=1)
+#             end_of_year = today.replace(year=today.year - age, month=12, day=31)
+#             random_days = random.randint(0, (end_of_year - start_of_year).days)
+#             dob = start_of_year + timedelta(days=random_days)
+#             dob_list.append(dob)
+# 
+# 
+#     while len(dob_list) < total_count:
+#         dob_list.append(fake.date_of_birth(minimum_age=18, maximum_age=84))
+# 
+#     return dob_list
+# 
+# age_distribution = {18: 2.5,
+#  19: 2.4479166666666665,
+#  20: 2.3958333333333335,
+#  21: 2.34375,
+#  22: 2.2916666666666665,
+#  23: 2.2395833333333335,
+#  24: 2.1875,
+#  25: 2.1354166666666665,
+#  26: 2.0833333333333335,
+#  27: 2.03125,
+#  28: 1.9791666666666665,
+#  29: 1.9270833333333333,
+#  30: 1.875,
+#  31: 1.8229166666666665,
+#  32: 1.7708333333333333,
+#  33: 1.71875,
+#  34: 1.6666666666666665,
+#  35: 1.6145833333333333,
+#  36: 1.5625,
+#  37: 1.5104166666666665,
+#  38: 1.4583333333333333,
+#  39: 1.40625,
+#  40: 1.3541666666666665,
+#  41: 1.3020833333333333,
+#  42: 1.25,
+#  43: 1.1979166666666665,
+#  44: 1.1458333333333333,
+#  45: 1.09375,
+#  46: 1.0416666666666665,
+#  47: 0.9895833333333333,
+#  48: 0.9375,
+#  49: 0.8854166666666665,
+#  50: 0.8333333333333333,
+#  51: 0.78125,
+#  52: 0.7291666666666665,
+#  53: 0.6770833333333333,
+#  54: 0.625,
+#  55: 0.5729166666666665,
+#  56: 0.5208333333333333,
+#  57: 0.46875,
+#  58: 0.4166666666666665,
+#  59: 0.36458333333333304,
+#  60: 0.3125,
+#  61: 0.2604166666666665,
+#  62: 0.20833333333333304,
+#  63: 0.15625,
+#  64: 0.10416666666666652,
+#  65: 0.05208333333333304,
+#  66: 0.0012739480145552728,
+#  67: 0.008171742981025524,
+#  68: 0.0035746422946617814,
+#  69: 0.002478415597879772,
+#  70: 0.0004604900089314778,
+#  71: 0.00046041242516873897,
+#  72: 0.000162447611697229,
+#  73: 0.005459999563880112,
+#  74: 0.002495083108856552,
+#  75: 0.003342542578607826,
+#  76: 5.646503074805896e-05,
+#  77: 0.009511301076487677,
+#  78: 0.00484971899540793,
+#  79: 0.0006479784856025557,
+#  80: 0.0005447943398265171,
+#  81: 0.0005500404254124784,
+#  82: 0.000984787594318387,
+#  83: 0.002019581990210183,
+#  84: 0.001535294725489966,
+#  85: 0.0009344811788715336,
+#  86: 0.0025691653056934675}
+# 
+# 
+# custom_dobs = custom_date_of_birth(age_distribution, Customers_records)
+# custom_dobs = np.random.choice(custom_dobs, Customers_records, replace=True)
+# 
+# # Customer ID
+# cust_id = [fake.bothify(text='????##??###', letters='abcdefghijklmnopqrstuvwxyz')for _ in range(Customers_records)]
+# 
+# # Referral
+# cust_referral_choices = cust_id + [None] * (Customers_records // 5)
+# cust_referral_id = np.random.choice(cust_referral_choices, Customers_records, replace=True)
+# 
+# 
+# Customers = pd.DataFrame({
+#     'cust_id': cust_id,
+#     'cust_contact': [fake.numerify(text='07#########') for _ in range(Customers_records)],
+#     'cust_email': [fake.email() for _ in range(Customers_records)],
+#     'cust_dob': custom_dobs,
+#     'cust_gender': np.random.choice(['M', 'F', 'O'], Customers_records),
+#     'cust_fname': [fake.first_name() for _ in range(Customers_records)],
+#     'cust_lname': [fake.last_name() for _ in range(Customers_records)],
+#     'cust_city': random_Customers_place['Region'],
+#     'cust_postcode': random_Customers_place['Sector']+random_Customers_place_u["Unit"],
+#     'cust_address': [fake.street_address() for _ in range(Customers_records)],
+#     'cust_active': np.random.choice([True, False], Customers_records),
+#     'cust_referral_id': cust_referral_id,
+#     'cust_type': np.random.choice(['Regular', 'Premium'], Customers_records),
+#     'cust_date_created': [fake.date_between(start_date='-5y', end_date='today') for _ in range(Customers_records)]
+# })
+# 
+# 
+# # Orders 
+# num_records = 50
+# # FK:supplier_id
+# cust_id_from_Customers = np.random.choice(Customers['cust_id'], num_records, replace=True)
+# """
+# num_from_products = 866
+# product_ids_from_products = np.random.choice(products['product_id'], num_from_products, replace=False)
+# num_new_product_ids = 1000 - len(product_ids_from_products)
+# 
+# new_product_ids = set()
+# while len(new_product_ids) < num_new_product_ids:
+#     new_id = np.random.randint(1000000, 10000000)
+#     if new_id not in product_ids_from_products and new_id not in new_product_ids:
+#         new_product_ids.add(new_id)
+#     
+# product_supplier_ids = np.concatenate((product_ids_from_products, list(new_product_ids)))
+# """
+# 
+# # product_id????
+# Orders = pd.DataFrame({
+#     'order_id': np.random.choice(range(10000000, 100000000), num_records, replace=False),
+#     'cust_id': cust_id_from_Customers,
+#     #'product_id': product_supplier_ids,
+#     'order_status': np.random.choice(['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'], num_records),
+#     'order_date': random_dates(pd.to_datetime('2019-01-01'), pd.to_datetime('today'), num_records),
+#     #'order_quantity': np.random.randint(1, 100, num_records)
+# })
+# 
+# 
+# 
+# # Order_items
+# num_Order_items = 80
+# num_Order_items_from_Products = 60
+# num_Order_items_from_Advertisements = num_Order_items-num_Order_items_from_Products
+# 
+# 
+# Products_records_for_Order_items = Products.sample(n=num_Order_items_from_Products, replace=True)
+# Orders_for_Order_items = Orders.sample(n=num_Order_items, replace=True)
+# Advertisements_records_for_Order_items = Advertisements.sample(n=num_Order_items_from_Advertisements, replace=True)
+# 
+# order_order_item_unit_price = np.concatenate((Products_records_for_Order_items['product_price'], Advertisements_records_for_Order_items['discount_price']))
+# 
+# product_ids = np.concatenate((
+#     Products_records_for_Order_items['product_id'].values,
+#     Advertisements_records_for_Order_items['product_id'].values  
+# ))
+# 
+# advertisement_ids = np.concatenate((
+#     np.array([None] * num_Order_items_from_Products),  
+#     Advertisements_records_for_Order_items['ads_id'].values  
+# ))
+# 
+# 
+# 
+# mean = 3.8
+# variance = 2
+# std = np.sqrt(variance)  
+# 
+# order_item_quantity = np.random.normal(mean, std, size=num_Order_items)
+# 
+# order_item_quantity_clipped = np.clip(order_item_quantity, 1, np.inf)
+# 
+# 
+# order_item_quantity_int = np.round(order_item_quantity_clipped)
+# 
+# 
+# 
+# Order_items = pd.DataFrame({
+#     'order_item_id': np.random.choice(range(100000, 100000000), num_Order_items, replace=False),
+#     'order_id': Orders_for_Order_items['order_id'],
+#     'product_id': product_ids,
+#     'ads_id': advertisement_ids,
+#     'order_item_quantity': order_item_quantity_int,  
+#     'order_item_unit_price': order_order_item_unit_price,
+#     'order_item_status': Orders_for_Order_items['order_status']
+# })
+# 
+# # Shipment
+# 
+# Orders_non_pending = Orders[(Orders['order_status'] != 'Pending') & (Orders['order_status'] != 'Cancelled')].copy().reset_index(drop=True)
+# Orders_non_pending_with_cust = pd.merge(Orders_non_pending, Customers[['cust_id','cust_city', 'cust_postcode', 'cust_address']], on='cust_id', how='left').reset_index(drop=True)
+# 
+# num_shipments = len(Orders_non_pending)
+# 
+# def get_random_shipment_status(row):
+#     if row['order_status'] == 'Processing':
+#         return np.random.choice(['Pending', 'Cancelled'])
+#     elif row['order_status'] == 'Shipped':
+#         return np.random.choice(['In Transit', 'Delivered', 'Cancelled'])
+#     elif row['order_status'] == 'Delivered':
+#         return 'Delivered'  
+#     else:
+#         return 'Unknown'  
+# 
+# Orders_non_pending['shipment_status'] = Orders_non_pending.apply(get_random_shipment_status, axis=1)
+# 
+# Orders_non_pending['order_date'] = Orders_non_pending['order_date'].dt.date
+# shipment_date = Orders_non_pending['order_date'] + timedelta(days=random.randint(1, 10))
+# Shipments = pd.DataFrame({
+#     'shipment_id': [fake.bothify(text='???##########').lower() for _ in range(num_shipments)],
+#     'order_id': Orders_non_pending['order_id'],
+#     'cust_id': Orders_non_pending['cust_id'],
+#     'shipment_date': shipment_date,
+#     'shipment_company': [fake.company() for _ in range(num_shipments)],
+#     'shipment_address': Orders_non_pending_with_cust['cust_address'],
+#     'shipment_postcode': Orders_non_pending_with_cust['cust_postcode'],
+#     'shipment_city': Orders_non_pending_with_cust['cust_city'],
+#     'shipment_status': Orders_non_pending['shipment_status']
+# })
+# 
+# 
+# # Payment
+# num_payments = len(Order_items)
+# 
+# order_item_non_pending = Order_items[(Order_items['order_item_status'] != 'Pending') & (Order_items['order_item_status'] != 'Cancelled')].copy()
+# 
+# conditions = [
+#     order_item_non_pending['order_item_status'] == 'Processing',
+#     order_item_non_pending['order_item_status'] == 'Shipped',
+#     order_item_non_pending['order_item_status'] == 'Delivered'
+# ]
+# 
+# choices = [
+#     np.random.choice(['Pending', 'Processing', 'Cancelled', 'Failed', 'Completed']),
+#     np.random.choice(['Completed', 'Processing', 'Cancelled']),
+#     np.random.choice(['Completed', 'Processing', 'Cancelled'])
+# ]
+# 
+# order_item_non_pending['payment_status'] = np.select(conditions, choices)
+# 
+# 
+# order_item_pending = Order_items[(Order_items['order_item_status'] == 'Pending') | (Order_items['order_item_status'] == 'Cancelled')].copy()
+# 
+# 
+# def get_random_payment_status(row):
+#     if row['order_item_status'] == 'Processing':
+#         return np.random.choice(['Pending', 'Processing', 'Cancelled', 'Failed', 'Completed'])
+#     elif row['order_item_status'] == 'Shipped':
+#         return np.random.choice(['Completed', 'Processing', 'Cancelled'])
+#     elif row['order_item_status'] == 'Delivered':
+#         return np.random.choice(['Completed', 'Processing', 'Cancelled'])
+#     else:
+#         return 'Unknown'  
+# 
+# 
+# order_item_non_pending['payment_status'] = order_item_non_pending.apply(get_random_payment_status, axis=1)
+# 
+# def get_random_payment_status_for_pending(row):
+#     if row['order_item_status'] == 'Pending':
+#         return np.random.choice(['Pending', 'Processing', 'Completed', 'Failed'])
+#     elif row['order_item_status'] == 'Cancelled':
+#         return np.random.choice(['Refund Completed', 'Refund Processing', 'Refund Failed'])
+#     else:
+#         return 'Unknown'
+# 'Pending', 'Processing', 'Completed', 'Failed', 'Refund Completed', 'Refund Processing', 'Refund Failed', 'Unknown'
+# 
+# order_item_pending['payment_status'] = order_item_pending.apply(get_random_payment_status_for_pending, axis=1)
+# 
+# order_item_records_for_payments = pd.concat([order_item_non_pending, order_item_pending], ignore_index=True)
+# 
+# 
+# order_item_records_with_cust_id = pd.merge(order_item_records_for_payments, Orders[['order_id', 'cust_id']], on='order_id', how='left')
+# 
+# 
+# weights_payment_method= [0.41, 0.328, 0.182, 0.08]
+# 
+# Payments = pd.DataFrame({
+#     'payment_id': [fake.bothify(text='????##??###', letters='abcdefghijklmnopqrstuvwxyz')for _ in range(num_payments)],
+#     'cust_id': order_item_records_with_cust_id['cust_id'],
+#     'order_item_id': order_item_records_for_payments['order_id'],
+#     'payment_status': order_item_records_for_payments['payment_status'],
+#     'payment_method': np.random.choice(['Credit Card', 'Debit Card', 'PayPal', 'Bank Transfer'], size=num_payments, p = weights_payment_method),
+# })
+# 
+# 
+# Order_items = Order_items.drop(columns=['order_item_status'])
+# 
+# 
+# 
+# Suppliers.to_csv('NewSuppliers.csv', index=False)
+# Advertisements.to_csv('NewAdvertisements.csv', index=False)
+# Orders.to_csv('NewOrders.csv', index=False)
+# Order_items.to_csv('NewOrder_items.csv', index=False)
+# Shipments.to_csv('NewShipments.csv', index=False)
+# Payments.to_csv('NewPayments.csv', index=False)
+# Customers.to_csv('NewCustomers.csv', index=False)
+# Products.to_csv('NewProducts.csv', index=False)
+```
