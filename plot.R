@@ -136,9 +136,10 @@ ggsave(paste0("figures/order_growth_plot_",
 
 
 
+# Query the data from the database and create a data frame for supplier. 
+supplier_query <- "SELECT * FROM Suppliers"
 
-
-
+supplier_df <- DBI::dbGetQuery(connection, supplier_query)
 # Mutate new column to specify which suppliers define as "Entity" or "Individual"
 supplier_df <- supplier_df %>%
   mutate(supplier_type = if_else(
