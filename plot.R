@@ -162,54 +162,9 @@ saveWidget(fig, file = file_name_html, selfcontained = TRUE)
 webshot(file_name_html, file = file_name_png)
 
 
-if (!requireNamespace("RSQLite", quietly = TRUE)) {
-  install.packages("RSQLite")
-}
-library(RSQLite)
-if (!requireNamespace("dplyr", quietly = TRUE)) {
-  install.packages("dplyr")
-}
-library(dplyr)
-if (!requireNamespace("ggplot2", quietly = TRUE)) {
-  install.packages("ggplot2")
-}
-library(ggplot2)
-
-if (!requireNamespace("htmlwidgets", quietly = TRUE)) {
-  install.packages("htmlwidgets")
-}
-library(htmlwidgets)
-if (!requireNamespace("DBI", quietly = TRUE)) {
-  install.packages("DBI")
-}
-library(DBI)
-
-if (!requireNamespace("lubridate", quietly = TRUE)) {
-  install.packages("lubridate")
-}
-library(lubridate)
-
-if (!requireNamespace("plotly", quietly = TRUE)) {
-  install.packages("plotly")
-}
-library(plotly)
-if (!requireNamespace("webshot", quietly = TRUE)) {
-  install.packages("webshot")
-  webshot::install_phantomjs()
-}
-library(webshot)
-if (!requireNamespace("leaflet", quietly = TRUE)) {
-  install.packages("leaflet")
-}
-library(leaflet)
-if (!requireNamespace("leaflet.extras", quietly = TRUE)) {
-  install.packages("leaflet.extras")
-}
-library(leaflet.extras)
 
 
 
-connection <- RSQLite::dbConnect(RSQLite::SQLite(),"ecomm.db")
 # Selecting Product ID, Category, and Order Date
 query <- "SELECT a.product_id AS Product_ID, a.products_category AS Category, b.order_date AS Order_Date
 FROM Products a
@@ -237,6 +192,13 @@ file_name_png <- paste0("figures/categories_", this_filename_date, "_", this_fil
 saveWidget(fig, file = file_name_html, selfcontained = TRUE)
 webshot(file_name_html, file = file_name_png)
 
+
+
+
+
+
+
+
 # To analyse the platform growth, we can directly use the data from cus_o_oi data frame
 order_analysis <- cus_o_oi %>%
   mutate(
@@ -262,7 +224,10 @@ ggsave(paste0("figures/order_growth_plot_",
               this_filename_date,"_",
               this_filename_time,".png"))
 
-# Analyse payment method
+
+
+
+
 
 #Group the payment types
 payment_analysis <- payment_df %>%
@@ -289,3 +254,31 @@ file_name_png <- paste0("figures/pie_chart_payment_", this_filename_date, "_", t
 
 saveWidget(pie_chart_payment, file = file_name_html, selfcontained = TRUE)
 webshot(file_name_html, file = file_name_png)
+
+
+
+
+
+
+
+# Mutate new column to specify which suppliers define as "Entity" or "Individual"
+supplier_df <- supplier_df %>%
+  mutate(supplier_type = if_else(
+    grepl("PLC|Inc|LLC|Ltd|Group", supplier_name, ignore.case = TRUE),
+    "Entity", "Individual"
+  ))
+
+#Group the supplier types
+supplier_analysis <- supplier_df %>%
+  group_by(supplier_type) %>%
+  summarize(count = n())
+
+# Plot the counts using ggplot
+supplier_plot <- ggplot(supplier_analysis, aes(x = supplier_type, y = count, fill = supplier_type)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Supplier Type", y = "Count", title = "Supplier Analysis") +
+  theme_minimal()
+
+ggsave(paste0("figures/supplier_plot_",
+              this_filename_date,"_",
+              this_filename_time,".png"))
