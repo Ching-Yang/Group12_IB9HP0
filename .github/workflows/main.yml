@@ -1,0 +1,77 @@
+name: Update data and plots
+
+on:
+  schedule:
+    - cron: '0 */24 * * *'
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+          
+      - name: Setup R environment
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3.3'
+          
+
+          
+      - name: Cache R packages
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-r-${{ hashFiles('**/lockfile') }}
+          restore-keys: |
+            ${{ runner.os }}-r-
+            
+      - name: Install libcurl (Ubuntu)
+        run: sudo apt-get install libcurl4-openssl-dev libssl-dev libxml2-dev -y
+        
+      - name: Install Pandoc
+        run: sudo apt-get install pandoc -y
+        
+      - name: Install GDAL
+        run: sudo apt-get install -y libgdal-dev libproj-dev  
+        
+      - name: Install packages
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          Rscript -e 'install.packages(c("ggplot2","DBI","dplyr","lubridate","plotly","RSQLite","readr","leaflet","leaflet.extras","htmlwidgets"))'
+
+      
+      - name: Run R script
+        run: |
+          Rscript up.R
+          
+
+      - name: Execute R script
+        run: |
+          mkdir -p figures
+          Rscript plot.R
+          
+
+      - name: Add files
+        run: |
+          git config --local --unset-all "http.https://github.com/.extraheader"
+          git config --global user.email "Ching-Yang.Lin@warwick.ac.uk"
+          git config --global user.name "Ching-Yang"
+          git add --all
+          
+      - name: Commit files
+        run: |
+          git commit -m "Update data and plots"
+          
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+            github_token: ${{ secrets.K }}
+          
+            
+            branch: main
+
+
+
