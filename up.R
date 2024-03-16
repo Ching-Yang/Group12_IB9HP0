@@ -30,13 +30,13 @@ Shipments <- readr::read_csv("dataset/Shipments.csv")
 Suppliers <- readr::read_csv("dataset/Suppliers.csv")
 
 Advertisements$ads_id <- as.integer(Advertisements$ads_id)
-Customers$cust_id <- as.as.character(Customers$cust_id)
+Customers$cust_id <- as.character(Customers$cust_id)
 Order_items$order_item_id <- as.integer(Order_items$order_item_id)
 Orders$order_id <- as.integer(Orders$order_id)
-Payments$payment_id <- as.as.character(Payments$payment_id)
+Payments$payment_id <- as.character(Payments$payment_id)
 Products$product_id <- as.integer(Products$product_id)
-Shipments$shipment_id <- as.as.character(Shipments$shipment_id)
-Suppliers$supplier_id <- as.as.character(Suppliers$supplier_id)
+Shipments$shipment_id <- as.character(Shipments$shipment_id)
+Suppliers$supplier_id <- as.character(Suppliers$supplier_id)
 
 
 new_Advertisements <- anti_join(Advertisements, old_Advertisements, by = "ads_id")
