@@ -237,3 +237,55 @@ file_name_png <- paste0("figures/categories_", this_filename_date, "_", this_fil
 saveWidget(fig, file = file_name_html, selfcontained = TRUE)
 webshot(file_name_html, file = file_name_png)
 
+# To analyse the platform growth, we can directly use the data from cus_o_oi data frame
+order_analysis <- cus_o_oi %>%
+  mutate(
+    year = lubridate::year(order_date),  # Extract year
+    month = lubridate::month(order_date), # Extract month
+    order_value = order_item_quantity * order_item_unit_price # to get the order value
+  )
+
+# Convert year and month to a date format
+order_analysis$date <- as.Date(paste(order_analysis$year, order_analysis$month, "01", sep = "-"), "%Y-%m-%d")
+
+# Generate a line graph to the growth
+order_growth_plot <- ggplot(order_analysis, aes(x = date, y = order_value)) +
+  geom_line(color = "lightblue") +
+  geom_smooth(method = "loess", se = FALSE, color = "skyblue") +  # Add smoother
+   geom_area(fill = "lightgrey", alpha = 0.3) +
+  labs(x = "Date", y = "Order Value", title = "Order Value Growth per Quarter") +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "3 months") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display the line plot
+ggsave(paste0("figures/order_growth_plot_",
+              this_filename_date,"_",
+              this_filename_time,".png"))
+
+# Analyse payment method
+
+#Group the payment types
+payment_analysis <- payment_df %>%
+  group_by(payment_method) %>%
+  summarize(count = n())
+
+# Define colors for each payment method
+colors <- c("skyblue", "palegreen2", "pink", "peachpuff1")
+
+# Create pie chart using plotly
+pie_chart_payment <- plot_ly(
+  payment_analysis,
+  labels = ~payment_method,
+  values = ~count,
+  type = "pie",
+  marker = list(colors = colors)
+) %>%
+  layout(title = "Payment Analysis")
+
+this_filename_date <- as.character(Sys.Date())
+this_filename_time <- as.character(format(Sys.time(), format = "%H_%M"))
+file_name_html <- paste0("figures/pie_chart_payment_", this_filename_date, "_", this_filename_time, ".html")
+file_name_png <- paste0("figures/pie_chart_payment_", this_filename_date, "_", this_filename_time, ".png")
+
+saveWidget(pie_chart_payment, file = file_name_html, selfcontained = TRUE)
+webshot(file_name_html, file = file_name_png)
