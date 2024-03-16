@@ -10,9 +10,9 @@ editor: visual
 
 ## Introduction
 
-This report simulate a real-world e-commerce data environment where engaging end-to-end data management. The report is composed of 4 major tasks from database design to data analysis.
+This report simulates a real-world e-commerce data environment engaging in end-to-end data management. The report is composed of 4 major tasks from database design to data analysis.
 
-```{r}
+```{r, echo=FALSE}
 #| echo: false
 knitr::opts_chunk$set(eva1 = FALSE)
 #Package to run SQL and R
@@ -35,27 +35,39 @@ library(plotly)
 
 ### 1.1 E-R Diagram Design
 
-*\[Attach image \]*
+![Figure 1: E-R Diagram](Report_images/E-R_Diagram.png){fig-align="center"}
 
-Our E-R Diagram that explains the e-commerce platform is composed of 7 entities which could be explained relationship as churns below:
+Our E-R Diagram that explains the e-commerce platform is composed of entities and relationships including Customers, Orders, Products, Suppliers, Order items, Advertisements, Payments, and Shipments (Figure 1) which can be explained in the relationship sets below.
 
-1.  **Customers:** The diagram begins with the Customer entity with a unique customer ID as its primary key. The information stored as attributes in this entity would relate to the customer's personal details, address, and account information (e.g gender, postcode, account type). Remark \*\* referral\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+**Customers:** The diagram begins with the Customer entity which has a unique customer ID as its primary key. The information stored as attributes in this entity would relate to the customer’s personal details, address, and account information (i.e., gender, postcode, account type). Additionally, a (1:N) self-referencing relationship is seen between the customer entity and the referral. This relationship suggests a customer can be a referrer and referee (Figure 2).
 
-2.  **Orders:** The Customer entity shares a many to many (M:N) relationship with Products entity through the relationship Orders. As such, Orders contains the primary key "order_id" with the attributes order status and order date.
+![Figure 2: Customer Referral relationship](Report_images/refer.jpeg){fig-align="center" width="302"}
 
-3.  **Products:** The M:N relationship between customers and products is assumed as many customers can order one product and vice versa. The product entity contains attributes that describe the product (dimensions, description etc.) as well as categories.
+**Orders:** The Customer entity shares a many to many (M:N) relationship with Products entity through the relationship Orders. As such, Orders contains the primary key "order_id" with the attributes order status and order date.
 
-\[Relationship sets\]
+![Figure 3: Customer and Orders relationship](Report_images/cust_order.jpeg){fig-align="center" width="339"}
 
-1.  **Suppliers:** Supplier sells Products on the ecommerce platform with a one to many (1:N) relationship as it is assumed that each supplier may sells multiple different products but the products are unique across suppliers. Attributes recorded pertain to the account information, contact, and name of the supplier.
+**Suppliers:** Supplier sells Products on the e-commerce platform with a one to many (1:N) relationship (Figure 4) as it is assumed that each supplier may sell multiple different products but the products are unique across suppliers. Attributes recorded pertain to the account information, contact, and name of the supplier.
 
-2.  **Order items:** After a customer places an order, the product information is contained in Order Items entity. The Order Items and Product entities share a one to many (1:N) relationship as it is assumed that one Order Item with a unique order item ID (primary key), contains all the products a customer wishes to buy. The entity takes note of the number of products in it and the total price.
+![Figure 4: Suppliers and Products relationship](Report_images/supp_pd.jpeg){fig-align="center" width="350"}
 
-3.  **Payments:** An (N:1) relationship is created between Order Items and Payments. This suggests that many order Items can be paid in one payment. The primary key for Payment is the Payment_ID, followed by the attributes of Payment_method and Payment_status.
+**Products:** The product entity contains attributes that describe the product (product names, dimensions, description etc.) as well as categories.
 
-4.  **Shipments:** Another (N:1) relationship is witnessed in Order_items and Shipment. The relationship implies that many order items can be shipped in one shipment. This entity consists of various attributes such as shipment_date, shipment_status, shipment_company, shipment_zipcode, shipment_address, shipment_city and its primary key as the shipment_ID.
+**Order items:** After a customer places an order, the product information is contained in Order Items entity. The Order Items and Product entities share a one to many (1:N) relationship (Figure 5) as it assumes that one Order Item with a unique order item ID (primary key), contains all the products a customer wishes to buy. The entity takes note of the number of products in it and the total price.
 
-5.  **Advertisements:** Suppliers are able to generate multiple advertisements for their products through the e-commerce platform, hence a one to many (1:N) relationship is shared between them. Ads_id has been assigned as the primary key with attributes ads_name, ads_details, product_discount and discount_price.
+![Figure 5: Order items and Products relationship](Report_images/order_item_pd.jpeg){fig-align="center" width="365"}
+
+**Payments:** An (N:1) relationship is created between Order Items and Payments (Figure 6). This suggests that many order Items can be paid in one payment. The primary key for Payment is the payment_id, followed by the attributes of Payment_method and Payment_status.
+
+![Figure 6: Order items and Payments relationship](Report_images/order_pay.jpeg){fig-align="center" width="343"}
+
+**Shipments:** Another (N:1) relationship is witnessed in Order items and Shipments (Figure 7). The relationship implies that many order items can be shipped in one shipment. This entity consists of various attributes such as shipment_date, shipment_status, shipment_company, shipment_postcode, shipment_address, shipment_city and its primary key as the shipment_id.
+
+![Figure 7: Order items and Shipments relationship](Report_images/order_ship.jpeg){fig-align="center" width="344"}
+
+**Advertisements:** Suppliers are able to generate multiple advertisements for their products through the e-commerce platform, hence a one to many (1:N) relationship is shared between them. Ads_id has been assigned as the primary key with attributes ads_name, ads_details, product_discount and discount_price. (Figure 8)
+
+![Figure 8: Suppliers and Advertisements relationship](Report_images/Supp_ads.jpeg){fig-align="center" width="316"}
 
 ### 1.2 SQL Database Schema Creation
 
@@ -65,7 +77,7 @@ To translate the E-R Diagram into functional SQL database schema, we listed out 
 
 2.  Advertisement ([ads_id]{.underline}, product_id, supplier_id, ads_details, ads_name, product_discount, discount_price)
 
-3.  Orders (order_id, [*cust_id*]{.underline}, order_status, order_date)
+3.  Orders ([order_id]{.underline}, cust_id, order_status, order_date)
 
 4.  Suppliers ([supplier_id]{.underline}, supplier_name, supplier_city, supplier_address, supplier_postcode, supplier_email, supplier_contact)
 
@@ -77,14 +89,14 @@ To translate the E-R Diagram into functional SQL database schema, we listed out 
 
 8.  Payment ([payment_id]{.underline}, cust_id, order_item_id, payment_status, payment_method)
 
-After that, we have created 8 tables that consist of attributes and their data types in below sections.
+After that, we created 8 tables that consist of attributes and their data types in below sections.
 
 ```{r defineconnection}
 #Define connection to connect R with the database using package RSQLite. We defined our e-commerce database as "ecomm.db"
 connection <- RSQLite::dbConnect(RSQLite::SQLite(),"ecomm.db")
 ```
 
-After that, we define create tables for each entity and relationship in below sections:
+After that, we created tables for each entity and relationship in below sections:
 
 1.  Customers
 
@@ -111,7 +123,7 @@ CREATE TABLE IF NOT EXISTS Customers (
 );
 ```
 
-2.  Orders (Relationship)
+2.  Orders
 
 ```{sql connection=connection}
 DROP TABLE IF EXISTS Orders
@@ -267,25 +279,23 @@ CREATE TABLE IF NOT EXISTS Shipments (
 
 To generate our e-commerce data, we have incorporated Python to create 8 files for each table. (See Appendix)
 
-There are 2 main packages that we utilised in Python, "Faker" to generate realistic names and addresses for individuals in a dataset, and then used "NumPy" to generate random numerical data such as income levels or ages to accompany this demographic information. This combination allows us to create diverse synthetic datasets for testing algorithms, building models, or simulating scenarios without relying on real-world data.
+There are 2 main packages that we utilised in Python, "Faker" to generate realistic names and addresses for individuals in a data set, and "NumPy" to generate random numerical data such as income levels or ages to accompany this demographic information. This combination allows us to create diverse synthetic data sets for testing algorithms, building models, or simulating scenarios without relying on real-world data.
 
-To ensure that there are relationships among our entities and to be able to join the table for the future uses, we sequenced the order of creating each table and inserted foreign keys for each table as well. For example, in the product table, we set records (num_records = 80) then generated supplier IDs for the products by randomly selecting from supplier IDs in the Suppliers dataframe (supplier_ids_from_Suppliers = np.random.choice(Suppliers\['supplier_id'\], num_records, replace=True))
+To ensure that there are relationships among our entities and to be able to join the table for future uses, we sequenced the order of creating each table and inserted foreign keys for each table as well. For example, in the product table, we set records (num_records = 80) then generated supplier IDs for the products by randomly selecting from supplier IDs in the Suppliers data frame (supplier_ids_from_Suppliers = np.random.choice(Suppliers\['supplier_id'\], num_records, replace=True))
 
-Another important assumption for our group is that, we set the e-commerce to be UK based, which means customer and suppliers are all located in the UK. Hence, the phone number and postcode logic are inffered to the UK information where the phone number has 11 digits and starts with 07x. For the postcode, we retracted the information from a service provider specialising in postcode-related called 'IdealPostcodes' (ideal-postcodes.co.uk. (2023). UK Postcode Format. \[online\] Available at: https://ideal-postcodes.co.uk/guides/uk-postcode-format \[Accessed 16 March 2024\]). and doogal.co.uk. (2022). Postcode Districts. \[online\] Available at: https://www.doogal.co.uk/PostcodeDistricts#google_vignette \[Accessed 16 March 2024\].
+Another important assumption for our group is that, we set the e-commerce to be UK based, which means all customers and suppliers are all located in the UK. Hence, the phone number and postcode logic are UK-based where the phone number has 11 digits and starts with 07x. For the postcode, we retracted the information from a service provider specialising in postcodes called 'IdealPostcodes' (ideal-postcodes.co.uk. (2023). UK Postcode Format. \[online\] Available at: https://ideal-postcodes.co.uk/guides/uk-postcode-format \[Accessed 16 March 2024\]). and doogal.co.uk. (2022). Postcode Districts. \[online\] Available at: https://www.doogal.co.uk/PostcodeDistricts#google_vignette \[Accessed 16 March 2024\].
 
-![](Report_images/postcode.jpeg)
+![Figure 9: UK Postcode generation](Report_images/postcode.jpeg){fig-align="center" width="497"}
 
-Based on the figure above, we gathered data from 2 websites, the sector section was where doogal.co.uk provided real information of the UK region, and IdealPostcodes randomly generated the unit part which are street and building with the population information. Notably, the population information is the data from the year 2011.
+Based on Figure 9, we gathered data from 2 websites, the sector section was where doogal.co.uk provided real information of the UK region, and IdealPostcodes randomly generated the unit part which are streets and buildings with the population information. Notably, the population information is the data from the year 2011.
 
-To reflect the real data, we also incorporated weight to the attributes including Customer age, Product price and Order item quantity in normal distribution, postcode (weighted by population) and payment method (higher weights for Credit Cards and Debit Cards)
+To reflect the real data, we also incorporated weights to the attributes including Customer age, Product price and Order item quantity in normal distribution, postcode (weighted by population) and payment method (higher weights for Credit Cards and Debit Cards).
 
 Lastly, we have also applied the logic for all status attributes including Order status, Payment status, Shipment status to reflect the real data. For instance, if the order status shows any status apart from 'Pending', the shipment status will appear to be 'Processing', 'Shipped' and 'Delivered'. This is to ensure that the status will not conflict to each other such as order status 'Cancelled' would not appear 'In transit' for the same order ID.
 
-<!-- -->
-
 ### 2.2 Data Import and Quality Assurance
 
-In this step, we imported the dataset using the concept of database driver between R and SQL and E-T-L.
+In this step, we imported the data set using the concept of database driver between R, SQL and E-T-L.
 
 ```{r dataloading, message=FALSE, warning=FALSE}
 #Import the data generating from Python
@@ -372,36 +382,34 @@ dbGetQuery(connection, "PRAGMA table_info(Shipments)")
 
 ### 3.1 Github Repository and Workflow Setup
 
-GitHub workflows streamline the software development lifecycle, making it more efficient, reliable, and collaborative. To collaborate out e-commerce project as a team, we created Github account. \[User id & link\] with the repository called "xxxxxx" \[Insert link\]
+GitHub workflows streamline the software development lifecycle, making it more efficient, reliable, and collaborative. To collaborate out the e-commerce project as a team, we created a Github account. \[User id & link\] with the repository called "xxxxxx" \[Insert link\]
 
-\[Inset Github Repository Link\]
+\[Inset Github Repository picture contains datafiles - db, scripts\]
 
 ### 3.2 Github Actions for Continuous Integration
 
 Automating data validation, database updates, and basic data analysis tasks using GitHub Actions improves efficiency, reliability, and scalability while ensuring consistency and integration with other tools in the development workflow.
 
-For our e-commerce project, we chose "xxxx.R" to present our data analysis sections and the update
+For our e-commerce project, we chose "plot.R" to plot the graphs and "up.R" to update the database and by automating them, we set up the workflow which contains steps in the figure below.
 
-mention about html
+\[attach screenshot of workflow stages\]
 
-By incorporating Github workflows, it allows us to connect the database helps us to check new data entries every particular times.
+To show that we have set the validation for the new data, Figure xx illustrates what would happened if we put in data that failed the checks, compared to the qualified ones.
 
-\[Link to workflow actions and show the changes in chart\]
+\[Attach comparisons pic\]
 
-```{r}
-#Code to append data (we have updated data, do we need to put in main report or R script)
+Because our graphs have some interactive features, completed functions can only be applied with html link in README file, therefore, we utilised "webshot" packages to change them to png files and saved them in "figures" folder.
 
-
-```
+Therefore, by incorporating Github workflows, it allows us to connect the database to help us to check new data entries every 24 hours.
 
 ## Part 4
 
 ### 4.1 Advanced Data Analysis in R
 
-To conduct advanced data analysis on our e-commerce database, we we created xx graphs to illustrate the insights of R by first, executing SQL query to retrieve data using RSQLite and DBI functions, then creating the new data frame by the analysis that we would like to present. To present our data, we applied various packages in R which could be described in the table below.
+To conduct advanced data analysis on our e-commerce database, we created 8 plots to illustrate the insights of R by first, executing SQL queries to retrieve data using RSQLite and DBI functions, then creating the new data frame for the analysis that we would like to present. To present our data, we applied various packages in R which are described in the table below.
 
 | Functions                  | Description                                                                                    |
-|:-----------------|:-----------------------------------------------------|
+|:---------------------------|:-----------------------------------------------------------------------------------------------|
 | tidyverse                  | Data manipulation and analysis in R                                                            |
 | ggplot2                    | Offers data visualisation tools especially for plots and graphs                                |
 | ggmap                      | Allows for easy integration of Google Maps and other mapping data into ggplot2                 |
@@ -411,13 +419,13 @@ To conduct advanced data analysis on our e-commerce database, we we created xx g
 
 : Table 1: Functions incorporated for data analysis
 
-We have analysed the e-commerce database in xx areas below.
+We have analysed the e-commerce database in 8 areas below.
 
 1.  Customer distribution analysis based on the order amounts
 
 To analyse customer distribution analysis based on the order amounts, we have to join three tables, Customers, Orders and Orders Item and named it as "cus_o_oi". Customers table contains key data that we would like to analyse such as customer's date of birth whereas we use Orders to retract the order_id from Orders_items which has information about the order quantity for each order_id and cust_id.
 
-We begin with data preparation by creating the dataframe for the joined three tables.
+We begin with data preparation by creating the data frame for the three joint tables.
 
 ```{r}
 # Join "Customers", "Orders", and "Order_items" tables using inner join
@@ -445,7 +453,7 @@ cus_o_oi$order_date <- as.POSIXct(cus_o_oi$order_date)
 After that, we created the new data frame called "cust_analysis" to manipulate/analyse the data without interrupting the data above.
 
 ```{r}
-# To begin with, we create the new column "cust_yob" to extract only year of birth data from customer's date of birth, then create another column "cust_age" from cust_yob.
+# To begin with, we create the new column "cust_year_of_birth" to extract only year of birth data from customer's date of birth, then create another column "cust_age" from cust_yob.
 cust_analysis <- cus_o_oi %>%
   mutate(cust_year_of_birth = lubridate::year(cust_dob),
          cust_age = 2024 - cust_year_of_birth)
@@ -470,11 +478,9 @@ age_ranges <- c("Under 20", "21-30", "31-40", "41-50", "51+")
 cust_analysis$cust_age_range <- cut(cust_analysis$cust_age, breaks = c(0, 20, 30, 40, 50, Inf), labels = age_ranges, right = FALSE)
 
 # Plot the data as a bar plot
-cust_order_plot <- plot_ly(data = cust_analysis, x = ~cust_age_range, y = ~order_item_quantity, type = 'bar', marker = list(color = '#1f77b4')) %>%
-  layout(xaxis = list(title = "Age Range"),
-         yaxis = list(title = "Total Order Items Quantity"),
-         title = "Total Order Items Quantity by Age Range")
-
+cust_order_plot_gg <- ggplot(data = cust_analysis, aes(x = cust_age_range, y = order_item_quantity)) +
+  geom_bar(stat = "identity", fill = "#1f77b4") +
+  labs(x = "Age Range", y = "Total Order Items Quantity", title = "Total Order Items Quantity by Age Range")
 
 # View the result
 cust_order_plot
@@ -482,7 +488,7 @@ cust_order_plot
 
 The result shows that the majority of the platform's customers are those who age from 21-30 and 31-40. This is useful for the platform to target the customers easier when they want to launch the campaign or promotions.
 
-2.  Analysis of the platform growth #can directly use cus_o_oi
+2.  Analysis of the platform growth
 
 ```{r}
 # To analyse the platform growth, we can directly use the data from cus_o_oi data frame
@@ -542,7 +548,7 @@ supplier_plot <- ggplot(supplier_analysis, aes(x = supplier_type, y = count, fil
 supplier_plot
 ```
 
-From the result, it could be seen that the majority of the sellers in e-commerce database is "". This is a useful information for the platform. For example, the high percentage of entity suppliers indicating professionalism and reliability so it increases customer trusts. As we set the assumption that the e-commerce is the start-up, the individual suppliers still high.
+From the result, it could be seen that the majority of the sellers in e-commerce database is "Individual". This is a useful information for the platform.
 
 4.  Payment method analysis
 
@@ -555,7 +561,6 @@ payment_df <- DBI::dbGetQuery(connection, payment_query)
 
 ```{r}
 # Analyse payment method
-
 
 #Group the payment types
 payment_analysis <- payment_df %>%
@@ -581,10 +586,11 @@ pie_chart_payment
 
 According to the result, it could be seen that the most popular method that is used by customer uses is "Credit Card" and "Debit Card". This information is useful for the platform to improve the payment performance and the ease of payment.
 
-5.Shipment Analysis: Geographical map
+5.  Shipment Analysis: Geographical map
 
 ```{r}
-# Create a data frame for shipment. Information of city, longitude and latitude from maps csv. file
+# Create a data frame for shipment. Information of city, longitude and latitude from maps csv
+
 shipment_query <- "SELECT a.shipment_city AS City, b.Latitude AS shipment_latitude, b.Longitude AS shipment_longitude
 FROM shipments a
 JOIN maps b ON a.shipment_city = b.Town;"
@@ -612,7 +618,7 @@ UK_map <- leaflet(locations) %>%
 UK_map
 ```
 
-Based on the result, the heatmap shows where shipment mostly located which in the case is "xx". This figure is useful for the e-commerce company if the company would like to establish the delivery hub, which should be located where customer located the most based on the delivery information.
+Based on the result, the heatmap shows where shipment mostly located. This figure is useful for the e-commerce company if the company would like to establish the delivery hub, which should be located where customer located the most based on the delivery information.
 
 6.  Order Analysis
 
@@ -639,7 +645,7 @@ fig_order <- ggplot(order_df, aes(x = Month)) +
 ggplotly(fig_order)
 ```
 
-The order quantity graph allows us to see the growth of each month. In this case it could be seen that the quantity per month is average around 15 orders. However, it is obvious that order volumns decreases significantly in October, therefore, the platform may push the order volumns by launching more advertisement this month.
+The order quantity graph allows us to see the growth of each month. In this case it could be seen that the quantity per month is average around 15 orders. However, it is obvious that order quantities decreases significantly in October, therefore, the platform may push the order quantities by launching more advertisements this month.
 
 7.  Advertisement Analysis
 
@@ -694,7 +700,7 @@ ggplotly(fig_cat)
 
 ```
 
-The category plot allows us to observe which categories people purchase the most in each month. This is beneficial to the platform to launch the campaign on each month based on the data. For example xxxx 's sales is peak during xxx. So the platform could encourage the suppliers to launch campaigns related to xxx during xxxx.
+The category plot allows us to observe which categories people purchase the most in each month. This is beneficial to the platform to launch the campaign on each month based on the data.
 
 After Analysis, we have to disconnect the database to improve the overall performance of the database system by reducing the number of active connections it needs to manage.
 
@@ -727,7 +733,7 @@ Advertisements can be tailored to customers of a certain region and age group. T
 cust_order_plot
 ```
 
-Additionally, the following geographical heat map shows the delivery locations of shipments. The heatmap changes from light blue, green, yellow, and orange to reflect the increasing intensity of sales in a region. It can be seen in areas such as London, Bristol, Edinburgh etc that sales are high.
+Additionally, the following geographical heat map shows the delivery locations of shipments. The heat map changes from light blue, green, yellow, and orange to reflect the increasing intensity of sales in a region. It can be seen in areas such as London, Bristol, Edinburgh etc. that sales are high.
 
 ```{r, echo=FALSE}
 UK_map
@@ -743,13 +749,13 @@ To coax suppliers into purchasing the advertisements, we assess their expenditur
 supplier_plot
 ```
 
-It would be most impactful to persuade suppliers in months when sales are low. From our analysis, in the months of May, June, August and October sales are lower than in other months and suppliers would be incentivised to advertise their products then.
+It would be impactful to persuade suppliers in months when sales are low. From our analysis, in May, June, August and October sales are lower than in other months and suppliers would be incentivised to advertise their products then.
 
 ```{r, echo=FALSE}
 fig_order
 ```
 
-To further value add to the analysis, we are able to identify the number of sales across different categories across all months. For example, sales are high for most suppliers in February except for suppliers selling travel essentials. Hence, utilizing both the orders by month and categories graphs we can tailor advertisements by month and categories for all suppliers.
+To further add value to our analysis, we are able to identify the number of sales across different categories across all months. For example, sales are high for most suppliers in February except for suppliers selling travel essentials. Hence, utilising both the orders by month and categories graphs we can tailor advertisements by month and categories for all suppliers.
 
 ```{r, echo=FALSE}
 fig_cat
@@ -774,8 +780,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 ### Appendix: Python code for data generation in Part 2.1
 
 ```{python}
-
-# """
+# 
 # import pandas as pd
 # import numpy as np
 # from faker import Faker
@@ -1260,19 +1265,6 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # new data
 # """
 # 
-# df = pd.read_excel('Postcode districts.xlsx', "Postcode districts")
-# df_u = pd.read_excel('units.xlsx', "units")
-# df_s = pd.read_excel('sectors.xlsx', "sectors")
-# df_s['Postcode'] = df_s['Sector'].str.split().str[0]
-# df['probability'] = df['Population'] / df['Population'].sum()
-# df_u['Unit'] = df_u['Unit'].astype(str)
-# postcode = pd.merge(df_s, df[['Postcode', 'probability', 'Region']], on='Postcode', how='left')
-# 
-# def random_dates(start, end, n=10):
-#     start_u = start.value//10**9
-#     end_u = end.value//10**9
-#     return pd.to_datetime(np.random.randint(start_u, end_u, n), unit='s')
-# 
 # # Suppliers
 # num_records=20
 # 
@@ -1281,7 +1273,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # random_suppliers_place_u = df_u.sample(n=num_records, replace = True).reset_index(drop=True)
 # 
 # r = random_suppliers_place['Sector']+random_suppliers_place_u["Unit"]
-# Suppliers = pd.DataFrame({
+# New_Suppliers = pd.DataFrame({
 #     'supplier_id': [fake.bothify(text='????##??###', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(num_records)],
 #     'supplier_name': [fake.company() for _ in range(num_records)],
 #     'supplier_city': random_suppliers_place['Region'],
@@ -1339,7 +1331,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # Products_price_2 = np.round(Products_price_clipped,2)
 # 
 # 
-# Products = pd.DataFrame({
+# New_Products = pd.DataFrame({
 #     'product_id': np.random.choice(range(1000000, 10000000), num_records, replace=False),
 #     'supplier_id': supplier_ids_from_Suppliers,
 #     'products_category': Products_category,
@@ -1360,7 +1352,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # 
 # product_discount = np.round(np.random.uniform(10, 80, num_Advertisements), 2)
 # discount_price = Products_records_for_Advertisements['product_price'] * (product_discount / 100)
-# Advertisements = pd.DataFrame({
+# New_Advertisements = pd.DataFrame({
 #     'ads_id': np.random.choice(range(100000, 1000000), num_Advertisements, replace=False),
 #     'product_id': Products_records_for_Advertisements['product_id'],  
 #     'supplier_id': Products_records_for_Advertisements['supplier_id'], 
@@ -1479,7 +1471,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # cust_referral_id = np.random.choice(cust_referral_choices, Customers_records, replace=True)
 # 
 # 
-# Customers = pd.DataFrame({
+# New_Customers = pd.DataFrame({
 #     'cust_id': cust_id,
 #     'cust_contact': [fake.numerify(text='07#########') for _ in range(Customers_records)],
 #     'cust_email': [fake.email() for _ in range(Customers_records)],
@@ -1516,7 +1508,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # """
 # 
 # # product_id????
-# Orders = pd.DataFrame({
+# New_Orders = pd.DataFrame({
 #     'order_id': np.random.choice(range(10000000, 100000000), num_records, replace=False),
 #     'cust_id': cust_id_from_Customers,
 #     #'product_id': product_supplier_ids,
@@ -1564,7 +1556,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # 
 # 
 # 
-# Order_items = pd.DataFrame({
+# New_Order_items = pd.DataFrame({
 #     'order_item_id': np.random.choice(range(100000, 100000000), num_Order_items, replace=False),
 #     'order_id': Orders_for_Order_items['order_id'],
 #     'product_id': product_ids,
@@ -1595,7 +1587,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # 
 # Orders_non_pending['order_date'] = Orders_non_pending['order_date'].dt.date
 # shipment_date = Orders_non_pending['order_date'] + timedelta(days=random.randint(1, 10))
-# Shipments = pd.DataFrame({
+# New_Shipments = pd.DataFrame({
 #     'shipment_id': [fake.bothify(text='???##########').lower() for _ in range(num_shipments)],
 #     'order_id': Orders_non_pending['order_id'],
 #     'cust_id': Orders_non_pending['cust_id'],
@@ -1609,9 +1601,9 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # 
 # 
 # # Payment
-# num_payments = len(Order_items)
+# num_payments = len(New_Order_items)
 # 
-# order_item_non_pending = Order_items[(Order_items['order_item_status'] != 'Pending') & (Order_items['order_item_status'] != 'Cancelled')].copy()
+# order_item_non_pending = New_Order_items[(New_Order_items['order_item_status'] != 'Pending') & (New_Order_items['order_item_status'] != 'Cancelled')].copy()
 # 
 # conditions = [
 #     order_item_non_pending['order_item_status'] == 'Processing',
@@ -1628,7 +1620,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # order_item_non_pending['payment_status'] = np.select(conditions, choices)
 # 
 # 
-# order_item_pending = Order_items[(Order_items['order_item_status'] == 'Pending') | (Order_items['order_item_status'] == 'Cancelled')].copy()
+# order_item_pending = New_Order_items[(New_Order_items['order_item_status'] == 'Pending') | (New_Order_items['order_item_status'] == 'Cancelled')].copy()
 # 
 # 
 # def get_random_payment_status(row):
@@ -1663,7 +1655,7 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # 
 # weights_payment_method= [0.41, 0.328, 0.182, 0.08]
 # 
-# Payments = pd.DataFrame({
+# New_Payments = pd.DataFrame({
 #     'payment_id': [fake.bothify(text='????##??###', letters='abcdefghijklmnopqrstuvwxyz')for _ in range(num_payments)],
 #     'cust_id': order_item_records_with_cust_id['cust_id'],
 #     'order_item_id': order_item_records_for_payments['order_id'],
@@ -1672,16 +1664,25 @@ Lastly, a deep analysis was conducted to make recommendations to the e-commerce 
 # })
 # 
 # 
-# Order_items = Order_items.drop(columns=['order_item_status'])
+# New_Order_items = New_Order_items.drop(columns=['order_item_status'])
+# 
+# Suppliers2 = pd.concat([Suppliers, New_Suppliers])
+# Advertisements2 = pd.concat([Advertisements, New_Advertisements])
+# Orders2 = pd.concat([Orders, New_Orders])
+# Order_items2 = pd.concat([Order_items, New_Order_items])
+# Shipments2 = pd.concat([Shipments, New_Shipments])
+# Payments2 = pd.concat([Payments, New_Payments])
+# Customers2 = pd.concat([Customers, New_Customers])
+# Products2 = pd.concat([Products, New_Products])
 # 
 # 
-# 
-# Suppliers.to_csv('NewSuppliers.csv', index=False)
-# Advertisements.to_csv('NewAdvertisements.csv', index=False)
-# Orders.to_csv('NewOrders.csv', index=False)
-# Order_items.to_csv('NewOrder_items.csv', index=False)
-# Shipments.to_csv('NewShipments.csv', index=False)
-# Payments.to_csv('NewPayments.csv', index=False)
-# Customers.to_csv('NewCustomers.csv', index=False)
-# Products.to_csv('NewProducts.csv', index=False)
+# Suppliers2.to_csv('update/Suppliers.csv', index=False)
+# Advertisements2.to_csv('update/Advertisements.csv', index=False)
+# Orders2.to_csv('update/Orders.csv', index=False)
+# Order_items2.to_csv('update/Order_items.csv', index=False)
+# Shipments2.to_csv('update/Shipments.csv', index=False)
+# Payments2.to_csv('update/Payments.csv', index=False)
+# Customers2.to_csv('update/Customers.csv', index=False)
+# Products2.to_csv('update/Products.csv', index=False)
+
 ```
