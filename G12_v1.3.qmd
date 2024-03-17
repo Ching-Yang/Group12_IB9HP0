@@ -2,6 +2,8 @@
 title: "Report_G12"
 format: pdf
 editor: visual
+editor_options: 
+  chunk_output_type: inline
 ---
 
 \*--Coverpage----------------------------------\*\*
@@ -106,7 +108,7 @@ DROP TABLE IF EXISTS Customers
 
 ```{sql connection=connection}
 CREATE TABLE IF NOT EXISTS Customers (
-    cust_id INT PRIMARY KEY,
+    cust_id VARCHAR(15) PRIMARY KEY,
     cust_contact VARCHAR(11) NOT NULL CHECK (cust_contact NOT LIKE '%[^0-9]%'),
     cust_email VARCHAR(100) NOT NULL UNIQUE,
     cust_dob DATE CHECK (cust_dob <= CURRENT_DATE),
@@ -117,7 +119,7 @@ CREATE TABLE IF NOT EXISTS Customers (
     cust_postcode VARCHAR(100) NOT NULL,
     cust_address VARCHAR(100) NOT NULL,
     cust_active BOOLEAN NOT NULL,
-    cust_referral_id INT,
+    cust_referral_id VARCHAR(15),
     cust_type VARCHAR(100) NOT NULL,
     cust_date_created DATE CHECK (cust_date_created <= CURRENT_DATE)
 );
@@ -132,9 +134,9 @@ DROP TABLE IF EXISTS Orders
 ```{sql connection=connection}
 CREATE TABLE IF NOT EXISTS Orders (
   order_id INT PRIMARY KEY,
-  cust_id INT NOT NULL,
+  cust_id VARCHAR(15) NOT NULL,
   order_status VARCHAR (50) NOT NULL CHECK (order_status IN ('Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled')),
-  order_date DATE,
+  order_date DATETIME,
   FOREIGN KEY('cust_id')
     REFERENCES Customers('cust_id')
   );
@@ -148,7 +150,7 @@ DROP TABLE IF EXISTS Suppliers
 
 ```{sql connection=connection}
 CREATE TABLE IF NOT EXISTS Suppliers (
-  supplier_id INT PRIMARY KEY,
+  supplier_id VARCHAR(15) PRIMARY KEY,
   supplier_name VARCHAR(100) NOT NULL,
   supplier_city VARCHAR(100) NOT NULL,
   supplier_address VARCHAR(100) NOT NULL,
@@ -168,7 +170,7 @@ DROP TABLE IF EXISTS Products
 ```{sql connection=connection}
 CREATE TABLE IF NOT EXISTS Products (
   product_id INT PRIMARY KEY,
-  supplier_id INT NOT NULL,
+  supplier_id VARCHAR(15) NOT NULL,
   products_category VARCHAR(100) NOT NULL,
   product_name VARCHAR(100) NOT NULL,
   product_description TEXT,
@@ -192,7 +194,7 @@ DROP TABLE IF EXISTS Advertisements
 CREATE TABLE IF NOT EXISTS Advertisements (
   ads_id INT PRIMARY KEY,
   product_id INT NOT NULL,
-  supplier_id INT NOT NULL,
+  supplier_id VARCHAR(15) NOT NULL,
   ads_details TEXT,
   ads_name VARCHAR (255) NOT NULL,
   product_discount DECIMAL(3,2) CHECK (product_discount >= 0 AND product_discount <= 100),
@@ -213,8 +215,8 @@ DROP TABLE IF EXISTS Payments
 
 ```{sql connection=connection}
 CREATE TABLE IF NOT EXISTS Payments (
-  payment_id INT PRIMARY KEY,
-  cust_id INT NOT NULL,
+  payment_id VARCHAR(15) PRIMARY KEY,
+  cust_id VARCHAR(15) NOT NULL,
   order_item_id INT NOT NULL,
   payment_status VARCHAR(50) NOT NULL CHECK (payment_status IN ('Pending', 'Processing', 'Completed', 'Failed', 'Cancelled', 'Refund Completed', 'Refund Processing', 'Refund Failed')),
   payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('Credit Card', 'Debit Card', 'PayPal', 'Bank Transfer')),
@@ -257,10 +259,10 @@ DROP TABLE IF EXISTS Shipments
 
 ```{sql connection=connection}
 CREATE TABLE IF NOT EXISTS Shipments (
-  shipment_id INT PRIMARY KEY,
+  shipment_id VARCHAR(15) PRIMARY KEY,
   order_id INT NOT NULL,
-  cust_id INT NOT NULL,
-  shipment_date DATE,
+  cust_id VARCHAR(15) NOT NULL,
+  shipment_date DATETIME,
   shipment_company VARCHAR(100) NOT NULL,
   shipment_postcode VARCHAR(100) NOT NULL,
   shipment_city VARCHAR(100) NOT NULL,
@@ -409,7 +411,7 @@ Therefore, by incorporating Github workflows, it allows us to connect the databa
 To conduct advanced data analysis on our e-commerce database, we created 8 plots to illustrate the insights of R by first, executing SQL queries to retrieve data using RSQLite and DBI functions, then creating the new data frame for the analysis that we would like to present. To present our data, we applied various packages in R which are described in the table below.
 
 | Functions                  | Description                                                                                    |
-|:---------------------------|:-----------------------------------------------------------------------------------------------|
+|:-------------------|:---------------------------------------------------|
 | tidyverse                  | Data manipulation and analysis in R                                                            |
 | ggplot2                    | Offers data visualisation tools especially for plots and graphs                                |
 | ggmap                      | Allows for easy integration of Google Maps and other mapping data into ggplot2                 |
@@ -483,7 +485,7 @@ cust_order_plot_gg <- ggplot(data = cust_analysis, aes(x = cust_age_range, y = o
   labs(x = "Age Range", y = "Total Order Items Quantity", title = "Total Order Items Quantity by Age Range")
 
 # View the result
-cust_order_plot
+cust_order_plot_gg
 ```
 
 The result shows that the majority of the platform's customers are those who age from 21-30 and 31-40. This is useful for the platform to target the customers easier when they want to launch the campaign or promotions.
@@ -709,7 +711,7 @@ After Analysis, we have to disconnect the database to improve the overall perfor
 RSQLite::dbDisconnect(connection)
 ```
 
-## 4.2 E-commerce Comprehensive report
+### 4.2 E-commerce Comprehensive report
 
 **Overview**
 

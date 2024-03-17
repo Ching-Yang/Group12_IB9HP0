@@ -1,0 +1,34 @@
+cust_id,cust_contact,cust_email,cust_dob,cust_gender,cust_fname,cust_lname,cust_city,cust_postcode,cust_address,cust_active,cust_referral_id,cust_type,cust_date_created
+jknb60bw985,07824997557,jasmine20@example.com,2002-02-28,O,Alex,Griffiths,Kingston upon Hull,HU7 9RB,"Flat 0
+Fisher villages",FALSE,yqyh60yh360,Premium,2020-06-10
+gths42sb475,07355690267,smithdanny@example.net,1995-08-04,O,Garry,Ali,South Lanarkshire,ML3 8UE,86 Gibbons gardens,FALSE,NA,Premium,2021-12-22
+reuu08xr885,07574181528,jaynekelly@example.net,1981-06-20,F,Norman,Webb,Norfolk,NR28 9TS,"Flat 4
+Banks route",FALSE,NA,Premium,2023-08-20
+vzge76mt888,07905652309,harrisonroy@example.org,1982-05-24,M,Brandon,Porter,Woking,GU21 7AL,9 Tony viaduct,FALSE,NA,Premium,2020-08-17
+yqyh60yh360,07872963894,wanderson@example.com,1985-04-11,M,Kate,Norman,Barnet,NW4 1WX,"Studio 56t
+Kenneth junctions",TRUE,wsvg42ol305,Premium,2022-02-22
+qfri57up189,07209877096,fcollins@example.org,2006-08-22,F,Ashleigh,Rose,Lambeth,SW2 3AU,"Flat 27
+Roberts gateway",FALSE,hddc81ec210,Premium,2024-02-12
+ewsy75uy465,07286100132,lewissmith@example.org,1981-02-28,F,Iain,Lee,Gloucester,GL4 6WQ,"Flat 0
+Ball island",TRUE,ewsy75uy465,Regular,2020-05-05
+xeej75tw517,07985472455,bethanyhawkins@example.org,1989-04-23,M,Katy,Hussain,Hertsmere,WD7 8UT,2 Wood islands,FALSE,jknb60bw985,Premium,2019-05-14
+nkxy46et233,07345106887,eileenbaker@example.org,2005-07-12,O,Dennis,Walker,Kent,CT1 2PY,"Flat 51
+Dean vista",TRUE,qfri57up189,Regular,2021-06-19
+wamr00ny890,07793917147,jobrien@example.com,2001-04-25,M,Kirsty,Marshall,North Yorkshire,DL6 1JN,"Flat 2
+Abigail estate",FALSE,xeej75tw517,Regular,2022-01-20
+nfol37yq810,07939685698,brees@example.net,2005-04-08,M,Annette,Taylor,South Buckinghamshire,UB9 4QF,"Studio 3
+Heather ranch",TRUE,jknb60bw985,Regular,2021-12-14
+taxz84ck746,07401528201,boltonbruce@example.com,2001-03-07,F,Timothy,Brown,South Somerset,BA9 8TT,260 Cheryl squares,TRUE,qfri57up189,Regular,2020-05-09
+dvwg72da671,07338887781,diane55@example.com,2005-05-07,O,Melanie,Hope,Chelmsford,CM3 6HP,65 Farmer ports,TRUE,qgcg17xp750,Premium,2019-11-14
+hddc81ec210,07515371117,harry88@example.net,2001-04-25,M,Carly,Higgins,Preston,PR1 7AL,"Flat 3
+Clark summit",TRUE,qfri57up189,Premium,2021-11-11
+vpsf38ts499,07274172984,richardsjoanna@example.com,1997-12-10,M,Janice,Middleton,Fenland,PE13 5AA,"Flat 2
+Martin curve",TRUE,NA,Premium,2020-01-30
+wsvg42ol305,07829310044,smithstewart@example.org,2003-03-12,O,Barbara,Smith,Sheffield,S8 0UD,"Studio 98
+Kyle lodge",FALSE,NA,Regular,2021-10-30
+qgcg17xp750,07737893563,martyn37@example.net,1974-12-20,M,Pauline,Dyer,Sunderland,SR2 9XY,"Flat 99v
+Frederick summit",TRUE,reuu08xr885,Premium,2019-07-16
+vadg21cm780,07689219364,leonardhunt@example.net,1972-03-07,M,Linda,Jones,Dartford,DA10 1UE,"Flat 42
+Harris mill",FALSE,reuu08xr885,Regular,2019-12-12
+bdkh02gi543,07342245125,omann@example.net,1982-04-23,M,Callum,Cox,Islington,N7 9FA,5 King circle,TRUE,dvwg72da671,Regular,2023-09-03
+hhdt96st958,07861356226,webbjosh@example.org,1980-06-12,O,Elizabeth,Welch,Exeter,EX20 1NN,35 Hammond course,TRUE,NA,Regular,2023-05-06
